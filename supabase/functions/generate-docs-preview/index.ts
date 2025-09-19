@@ -75,6 +75,13 @@ function bytesToBase64(bytes: Uint8Array): string {
 
 serve(async (req) => {
 	try {
+		const corsHeaders = {
+			"Access-Control-Allow-Origin": "*",
+			"Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+		};
+		if (req.method === "OPTIONS") {
+			return new Response("ok", { headers: corsHeaders });
+		}
 		if (req.method !== "POST") {
 			return new Response(JSON.stringify({ ok: false, error: "Method not allowed" }), { status: 405, headers: { "Content-Type": "application/json" } });
 		}
@@ -108,7 +115,7 @@ serve(async (req) => {
 			ok: true,
 			receiptBase64: bytesToBase64(receiptBytes),
 			certificateBase64: bytesToBase64(certBytes),
-		}), { status: 200, headers: { "Content-Type": "application/json" } });
+		}), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
 	} catch (err) {
 		return new Response(JSON.stringify({ ok: false, error: String(err?.message || err) }), {
 			status: 500,
