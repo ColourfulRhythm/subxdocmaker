@@ -90,7 +90,7 @@ async function generateReceiptPdf({ company, name, phone, email, squareMeters, a
 	doc.fontSize(14).fillColor('#27ae60').text('PAYMENT DETAILS', 70, paymentY);
 	doc.fontSize(12).fillColor('black');
 	doc.text(`Property Size: ${squareMeters} square meters`, 70, paymentY + 25);
-	doc.fontSize(16).fillColor('#27ae60').text(`Amount Paid: $${Number(amount).toLocaleString()}`, 70, paymentY + 45);
+	doc.fontSize(16).fillColor('#27ae60').text(`Amount Paid: ₦${Number(amount).toLocaleString()}`, 70, paymentY + 45);
 	doc.fontSize(10).fillColor('#7f8c8d').text(`Tax ID: ${company.taxId}`, 70, paymentY + 70);
 
 	// Payment method section
@@ -210,7 +210,7 @@ async function generateOwnershipCertificatePdf({ company, name, phone, email, sq
 	doc.fontSize(12).fillColor('black');
 	doc.text(`Project: ${company.projectName}`, 100, doc.y);
 	doc.text(`Property Size: ${squareMeters} square meters`, 100, doc.y + 20);
-	doc.text(`Consideration Amount: $${Number(amount).toLocaleString()}`, 100, doc.y + 40);
+	doc.text(`Consideration Amount: ₦${Number(amount).toLocaleString()}`, 100, doc.y + 40);
 	doc.text(`Owner Contact: ${email} | ${phone}`, 100, doc.y + 60);
 
 	doc.y = boxY + 140;

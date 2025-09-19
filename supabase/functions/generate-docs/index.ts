@@ -16,22 +16,22 @@ type Payload = {
 };
 
 const COMPANY = {
-	name: "Acme Real Estate Ltd.",
-	addressLine1: "123 Market Street",
-	addressLine2: "Central Business District",
-	city: "Metropolis",
-	state: "CA",
-	postalCode: "90001",
-	country: "USA",
-	phone: "+1 (555) 123-4567",
-	email: "support@acme-realestate.com",
-	website: "https://acme-realestate.com",
-	taxId: "TAX-ACME-0001",
+	name: "Focal Point Property Development and Management Services Ltd.",
+	addressLine1: "2 Seasons, Off Kobape-Abeokuta Expressway",
+	addressLine2: "Gbako Village",
+	city: "Abeokuta",
+	state: "Ogun State",
+	postalCode: "110001",
+	country: "Nigeria",
+	phone: "+234 (0) 123 456 7890",
+	email: "info@focalpointproperties.com",
+	website: "https://focalpointproperties.com",
+	taxId: "TAX-FP-2024-001",
 	bank: {
-		name: "First National Bank",
-		accountName: "Acme Real Estate Ltd.",
+		name: "First Bank of Nigeria",
+		accountName: "Focal Point Property Development and Management Services Ltd.",
 		accountNumber: "1234567890",
-		routingNumber: "1100000",
+		routingNumber: "0110000",
 	},
 };
 
@@ -141,7 +141,7 @@ serve(async (req) => {
 			`Phone: ${phone}`,
 			`Email: ${email}`,
 			`Property Size: ${squareMeters} sq. meters`,
-			`Amount Paid: $${Number(amount).toLocaleString()}`,
+			`Amount Paid: ₦${Number(amount).toLocaleString()}`,
 			`Payment Method: Bank Transfer`,
 			`Bank: ${COMPANY.bank.name}`,
 			`Account Name: ${COMPANY.bank.accountName}`,
@@ -155,7 +155,7 @@ serve(async (req) => {
 			`Owner Email: ${email}`,
 			`Owner Phone: ${phone}`,
 			`Property Size: ${squareMeters} sq. meters`,
-			`Consideration Amount: $${Number(amount).toLocaleString()}`,
+			`Consideration Amount: ₦${Number(amount).toLocaleString()}`,
 			`Issued on: ${new Date().toLocaleDateString()}`,
 		]);
 

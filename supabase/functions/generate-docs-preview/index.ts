@@ -7,27 +7,27 @@ import {
 } from "https://esm.sh/pdf-lib@1.17.1";
 
 const COMPANY = {
-	name: "Acme Real Estate Ltd.",
-	addressLine1: "123 Market Street",
-	addressLine2: "Central Business District",
-	city: "Metropolis",
-	state: "CA",
-	postalCode: "90001",
-	country: "USA",
-	phone: "+1 (555) 123-4567",
-	email: "support@acme-realestate.com",
-	website: "https://acme-realestate.com",
-	taxId: "TAX-ACME-0001",
+	name: "Focal Point Property Development and Management Services Ltd.",
+	addressLine1: "2 Seasons, Off Kobape-Abeokuta Expressway",
+	addressLine2: "Gbako Village",
+	city: "Abeokuta",
+	state: "Ogun State",
+	postalCode: "110001",
+	country: "Nigeria",
+	phone: "+234 (0) 123 456 7890",
+	email: "info@focalpointproperties.com",
+	website: "https://focalpointproperties.com",
+	taxId: "TAX-FP-2024-001",
 	bank: {
-		name: "First National Bank",
-		accountName: "Acme Real Estate Ltd.",
+		name: "First Bank of Nigeria",
+		accountName: "Focal Point Property Development and Management Services Ltd.",
 		accountNumber: "1234567890",
-		routingNumber: "1100000",
+		routingNumber: "0110000",
 	},
-	projectName: "Grand View Estates",
-	ceoName: "Jane Doe",
-	ceoTitle: "Chief Executive Officer",
-	deedText: "This Deed of Assignment is made on this day, transferring all rights, title, and interest in the property located at [Property Address] from [Assignor Name] to [Assignee Name], in consideration of the sum of [Amount].",
+	projectName: "2 Seasons",
+	ceoName: "Tolulope Olugbode",
+	ceoTitle: "Founder",
+	deedText: "This Deed of Assignment is made on this day, transferring all rights, title, and interest in the property located at 2 Seasons, Off Kobape-Abeokuta Expressway, Gbako Village, Ogun State from Focal Point Property Development and Management Services Ltd. to [Assignee Name], in consideration of the sum of [Amount].",
 };
 
 const corsHeaders = {
@@ -192,17 +192,17 @@ async function createImageAsSVG(title: string, content: string[]): Promise<strin
 			`;
 		} else {
 			// Default design for other documents
-			const lines = content.map((line, index) => 
-				`<text x="40" y="${80 + (index * 25)}" font-family="Arial, sans-serif" font-size="14" fill="#333">${line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</text>`
-			).join('\n');
-			
+		const lines = content.map((line, index) => 
+			`<text x="40" y="${80 + (index * 25)}" font-family="Arial, sans-serif" font-size="14" fill="#333">${line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</text>`
+		).join('\n');
+		
 			svgContent = `
-				<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
-					<rect width="100%" height="100%" fill="#fafafa" stroke="#ddd" stroke-width="2"/>
-					<text x="40" y="40" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#000">${title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</text>
-					${lines}
-				</svg>
-			`;
+			<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+				<rect width="100%" height="100%" fill="#fafafa" stroke="#ddd" stroke-width="2"/>
+				<text x="40" y="40" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#000">${title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</text>
+				${lines}
+			</svg>
+		`;
 		}
 		
 		// Return SVG as base64
@@ -245,7 +245,7 @@ serve(async (req) => {
 			`Phone: ${phone}`,
 			`Email: ${email}`,
 			`Property Size: ${squareMeters} sq. meters`,
-			`Amount Paid: $${Number(amount).toLocaleString()}`,
+			`Amount Paid: ₦${Number(amount).toLocaleString()}`,
 			``,
 			`Company: ${COMPANY.name}`,
 			`Address: ${COMPANY.addressLine1}`,
@@ -260,7 +260,7 @@ serve(async (req) => {
 			`Owner Email: ${email}`,
 			`Owner Phone: ${phone}`,
 			`Property Size: ${squareMeters} sq. meters`,
-			`Consideration Amount: $${Number(amount).toLocaleString()}`,
+			`Consideration Amount: ₦${Number(amount).toLocaleString()}`,
 			``,
 			`This certificate confirms ownership of the above property`,
 			`in the ${COMPANY.projectName} development.`,
@@ -274,7 +274,7 @@ serve(async (req) => {
 			`Assignor: ${COMPANY.name}`,
 			`Assignee: ${name}`,
 			`Property: ${COMPANY.projectName} - ${squareMeters} sq. meters`,
-			`Consideration: $${Number(amount).toLocaleString()}`,
+			`Consideration: ₦${Number(amount).toLocaleString()}`,
 			``,
 			`This deed transfers and assigns all rights, title and interest`,
 			`in the property to the Assignee, subject to applicable laws`,
