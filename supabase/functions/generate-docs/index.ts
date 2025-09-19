@@ -209,9 +209,15 @@ serve(async (req) => {
 			headers: { "Content-Type": "application/json", ...corsHeaders },
 		});
 	} catch (err) {
+		const corsHeaders = {
+			"Access-Control-Allow-Origin": "*",
+			"Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+			"Access-Control-Allow-Methods": "POST, OPTIONS",
+			"Access-Control-Max-Age": "86400",
+		};
 		return new Response(JSON.stringify({ ok: false, error: String(err?.message || err) }), {
 			status: 500,
-			headers: { "Content-Type": "application/json" },
+			headers: { "Content-Type": "application/json", ...corsHeaders },
 		});
 	}
 });
