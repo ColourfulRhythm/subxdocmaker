@@ -118,27 +118,50 @@ serve(async (req) => {
 			return new Response(JSON.stringify({ ok: false, error: "Missing required fields" }), { status: 400, headers: { "Content-Type": "application/json" } });
 		}
 
-		// Receipt preview: JPG image
-		const receiptJpg = await createImage(1100, 800, "Payment Receipt", [
-			`Date: ${new Date().toLocaleDateString()}`,
-			`Receipt #: ${Date.now()}`,
-			`Received from: ${name}`,
-			`Phone: ${phone}`,
-			`Email: ${email}`,
-			`Property Size: ${squareMeters} sq. meters`,
-			`Amount Paid: $${Number(amount).toLocaleString()}`,
-		], "jpg");
-
-		// Certificate preview: PNG image
-		const certPng = await createImage(1100, 800, "Certificate of Ownership", [
-			`Project: ${COMPANY.projectName}`,
-			`Owner Name: ${name}`,
-			`Owner Email: ${email}`,
-			`Owner Phone: ${phone}`,
-			`Property Size: ${squareMeters} sq. meters`,
-			`Consideration Amount: $${Number(amount).toLocaleString()}`,
-			`Signed by: ${COMPANY.ceoName}, ${COMPANY.ceoTitle}`,
-		], "png");
+		let receiptJpg: Uint8Array | null = null;
+		let certPng: Uint8Array | null = null;
+		let receiptPdfFallback: Uint8Array | null = null;
+		let certPdfFallback: Uint8Array | null = null;
+		try {
+			receiptJpg = await createImage(1100, 800, "Payment Receipt", [
+				`Date: ${new Date().toLocaleDateString()}`,
+				`Receipt #: ${Date.now()}`,
+				`Received from: ${name}`,
+				`Phone: ${phone}`,
+				`Email: ${email}`,
+				`Property Size: ${squareMeters} sq. meters`,
+				`Amount Paid: $${Number(amount).toLocaleString()}`,
+			], "jpg");
+			certPng = await createImage(1100, 800, "Certificate of Ownership", [
+				`Project: ${COMPANY.projectName}`,
+				`Owner Name: ${name}`,
+				`Owner Email: ${email}`,
+				`Owner Phone: ${phone}`,
+				`Property Size: ${squareMeters} sq. meters`,
+				`Consideration Amount: $${Number(amount).toLocaleString()}`,
+				`Signed by: ${COMPANY.ceoName}, ${COMPANY.ceoTitle}`,
+			], "png");
+		} catch (_e) {
+			// Fallback to PDFs if image rendering fails (e.g., font fetch blocked)
+			receiptPdfFallback = await createPdf("Payment Receipt", [
+				`Date: ${new Date().toLocaleDateString()}`,
+				`Receipt #: ${Date.now()}`,
+				`Received from: ${name}`,
+				`Phone: ${phone}`,
+				`Email: ${email}`,
+				`Property Size: ${squareMeters} sq. meters`,
+				`Amount Paid: $${Number(amount).toLocaleString()}`,
+			]);
+			certPdfFallback = await createPdf("Certificate of Ownership", [
+				`Project: ${COMPANY.projectName}`,
+				`Owner Name: ${name}`,
+				`Owner Email: ${email}`,
+				`Owner Phone: ${phone}`,
+				`Property Size: ${squareMeters} sq. meters`,
+				`Consideration Amount: $${Number(amount).toLocaleString()}`,
+				`Signed by: ${COMPANY.ceoName}, ${COMPANY.ceoTitle}`,
+			]);
+		}
 
 		// Deed of Assignment preview: PDF
 		const deedPdf = await createPdf("Deed of Assignment", [
@@ -153,8 +176,10 @@ serve(async (req) => {
 
 		return new Response(JSON.stringify({
 			ok: true,
-			receiptJpgBase64: bytesToBase64(receiptJpg),
-			certificatePngBase64: bytesToBase64(certPng),
+			receiptJpgBase64: receiptJpg ? bytesToBase64(receiptJpg) : undefined,
+			certificatePngBase64: certPng ? bytesToBase64(certPng) : undefined,
+			receiptBase64: receiptPdfFallback ? bytesToBase64(receiptPdfFallback) : undefined,
+			certificateBase64: certPdfFallback ? bytesToBase64(certPdfFallback) : undefined,
 			deedPdfBase64: bytesToBase64(deedPdf),
 		}), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
 	} catch (err) {
