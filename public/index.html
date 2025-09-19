@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Document Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        label { display: block; margin-top: 12px; font-weight: bold; }
+        input { width: 100%; padding: 8px; margin-top: 6px; box-sizing: border-box; }
+        button { margin-top: 16px; padding: 10px 14px; }
+        .success { margin-top: 16px; color: green; }
+        .error { margin-top: 16px; color: red; }
+    </style>
+    <script>
+        async function submitForm(event) {
+            event.preventDefault();
+            const form = event.target;
+            const data = Object.fromEntries(new FormData(form).entries());
+
+            const payload = {
+                name: data.name?.trim(),
+                phone: data.phone?.trim(),
+                email: data.email?.trim(),
+                squareMeters: data.squareMeters?.trim(),
+                amount: data.amount?.trim(),
+            };
+
+            const status = document.getElementById('status');
+            status.textContent = 'Generating and sending documents...';
+            status.className = '';
+
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const body = await res.json();
+                if (!res.ok || !body.ok) throw new Error(body.error || 'Request failed');
+                status.textContent = 'Success! Documents have been emailed.';
+                status.className = 'success';
+                form.reset();
+            } catch (err) {
+                status.textContent = 'Error: ' + err.message;
+                status.className = 'error';
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Generate Documents</h1>
+        <form onsubmit="submitForm(event)">
+            <label for="name">Name</label>
+            <input id="name" name="name" required />
+
+            <label for="phone">Phone number</label>
+            <input id="phone" name="phone" required />
+
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" required />
+
+            <label for="squareMeters">Number of square meters</label>
+            <input id="squareMeters" name="squareMeters" type="number" step="0.01" required />
+
+            <label for="amount">Amount</label>
+            <input id="amount" name="amount" type="number" step="0.01" required />
+
+            <button type="submit">Generate & Send</button>
+        </form>
+        <div id="status"></div>
+    </div>
+</body>
+</html>
+
+

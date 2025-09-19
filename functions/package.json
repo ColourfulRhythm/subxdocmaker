@@ -1,0 +1,22 @@
+{
+  "name": "functions",
+  "private": true,
+  "type": "commonjs",
+  "engines": { "node": "18" },
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'no build'",
+    "start": "firebase emulators:start --only functions,hosting",
+    "serve": "firebase emulators:start --only functions"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "cors": "^2.8.5",
+    "firebase-functions": "^5.1.1",
+    "firebase-admin": "^12.5.0",
+    "nodemailer": "^7.0.6",
+    "pdfkit": "^0.17.2"
+  }
+}
+
+
