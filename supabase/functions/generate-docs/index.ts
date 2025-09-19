@@ -114,14 +114,16 @@ async function sendEmail({ to, name, receiptBase64, certBase64 }: { to: string; 
 
 serve(async (req) => {
 	try {
+		const reqAllowHeaders = req.headers.get("access-control-request-headers") || "authorization, x-client-info, apikey, content-type";
+		const reqAllowMethod = req.headers.get("access-control-request-method") || "POST";
 		const corsHeaders = {
 			"Access-Control-Allow-Origin": "*",
-			"Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-			"Access-Control-Allow-Methods": "POST, OPTIONS",
+			"Access-Control-Allow-Headers": reqAllowHeaders,
+			"Access-Control-Allow-Methods": `${reqAllowMethod}, OPTIONS`,
 			"Access-Control-Max-Age": "86400",
 		};
 		if (req.method === "OPTIONS") {
-			return new Response("ok", { headers: corsHeaders });
+			return new Response(null, { status: 204, headers: corsHeaders });
 		}
 		if (req.method !== "POST") {
 			return new Response(JSON.stringify({ ok: false, error: "Method not allowed" }), { status: 405, headers: { "Content-Type": "application/json" } });
@@ -209,10 +211,12 @@ serve(async (req) => {
 			headers: { "Content-Type": "application/json", ...corsHeaders },
 		});
 	} catch (err) {
+		const reqAllowHeaders = req.headers.get("access-control-request-headers") || "authorization, x-client-info, apikey, content-type";
+		const reqAllowMethod = req.headers.get("access-control-request-method") || "POST";
 		const corsHeaders = {
 			"Access-Control-Allow-Origin": "*",
-			"Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-			"Access-Control-Allow-Methods": "POST, OPTIONS",
+			"Access-Control-Allow-Headers": reqAllowHeaders,
+			"Access-Control-Allow-Methods": `${reqAllowMethod}, OPTIONS`,
 			"Access-Control-Max-Age": "86400",
 		};
 		return new Response(JSON.stringify({ ok: false, error: String(err?.message || err) }), {
