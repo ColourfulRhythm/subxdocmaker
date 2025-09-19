@@ -21,6 +21,9 @@
         // Supabase function endpoints (deployed in your project)
         window.API_GENERATE_URL = 'https://kdisvxgqqskpxgxzbbet.functions.supabase.co/generate-docs';
         window.API_PREVIEW_URL  = 'https://kdisvxgqqskpxgxzbbet.functions.supabase.co/generate-docs-preview';
+        // Provide your Supabase anon key to authorize Edge Function calls (required by gateway)
+        // Set at build-time or inline here. Example:
+        // window.SUPABASE_ANON_KEY = 'eyJhbGciOiJI...';
     </script>
     <script>
         // Configurable API URLs: set window.API_GENERATE_URL and window.API_PREVIEW_URL for Supabase
@@ -45,9 +48,14 @@
             status.className = '';
 
             try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (window.SUPABASE_ANON_KEY) {
+                    headers['apikey'] = window.SUPABASE_ANON_KEY;
+                    headers['Authorization'] = `Bearer ${window.SUPABASE_ANON_KEY}`;
+                }
                 const res = await fetch(API_GENERATE_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify(payload),
                 });
                 const body = await res.json();
@@ -78,9 +86,14 @@
             status.className = '';
 
             try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (window.SUPABASE_ANON_KEY) {
+                    headers['apikey'] = window.SUPABASE_ANON_KEY;
+                    headers['Authorization'] = `Bearer ${window.SUPABASE_ANON_KEY}`;
+                }
                 const res = await fetch(API_PREVIEW_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify(payload),
                 });
                 const body = await res.json();
