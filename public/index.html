@@ -99,15 +99,18 @@
                 const body = await res.json();
                 if (!res.ok || !body.ok) throw new Error(body.error || 'Preview failed');
 
-                const recUrl = `data:application/pdf;base64,${body.receiptBase64}`;
-                const certUrl = `data:application/pdf;base64,${body.certificateBase64}`;
+                const recUrl = `data:image/jpeg;base64,${body.receiptJpgBase64}`;
+                const certUrl = `data:image/png;base64,${body.certificatePngBase64}`;
+                const deedUrl = `data:application/pdf;base64,${body.deedPdfBase64}`;
 
                 const preview = document.getElementById('preview');
                 const receiptFrame = document.getElementById('receiptFrame');
                 const certFrame = document.getElementById('certFrame');
-                if (receiptFrame && certFrame && preview) {
+                const deedFrame = document.getElementById('deedFrame');
+                if (receiptFrame && certFrame && deedFrame && preview) {
                     receiptFrame.src = recUrl;
                     certFrame.src = certUrl;
+                    deedFrame.src = deedUrl;
                     preview.style.display = '';
                 }
 
@@ -151,6 +154,7 @@
             <div class="frames">
                 <iframe id="receiptFrame" title="Receipt Preview"></iframe>
                 <iframe id="certFrame" title="Certificate Preview"></iframe>
+                <iframe id="deedFrame" title="Deed of Assignment Preview"></iframe>
             </div>
         </div>
     </div>

@@ -5,6 +5,7 @@ import {
 	StandardFonts,
 	rgb,
 } from "https://esm.sh/pdf-lib@1.17.1";
+import { Image as Img, Font as ImgFont, RGBA } from "https://deno.land/x/imagescript@1.2.15/mod.ts";
 
 const COMPANY = {
 	name: "Acme Real Estate Ltd.",
@@ -73,6 +74,28 @@ function bytesToBase64(bytes: Uint8Array): string {
 	return btoa(binary);
 }
 
+async function createImage(width: number, height: number, title: string, lines: string[], output: "png" | "jpg"): Promise<Uint8Array> {
+	const img = new Img(width, height);
+	img.fill(new RGBA(250, 250, 250, 255));
+
+	// Load a font from Google Fonts (Roboto). Cache behavior is up to the platform.
+	const fontUrl = "https://raw.githubusercontent.com/google/fonts/main/apache/roboto/Roboto-Regular.ttf";
+	const fontBytes = await (await fetch(fontUrl)).arrayBuffer();
+	const fontTitle = await ImgFont.from(fontBytes, 36);
+	const fontBody = await ImgFont.from(fontBytes, 22);
+
+	let y = 40;
+	await img.print(fontTitle, 40, y, title, new RGBA(0, 0, 0, 255));
+	y += 50;
+	for (const line of lines) {
+		await img.print(fontBody, 40, y, line, new RGBA(30, 30, 30, 255));
+		y += 32;
+	}
+
+	if (output === "png") return await img.encode();
+	return await img.encodeJPEG(0.9);
+}
+
 serve(async (req) => {
 	try {
 		const reqAllowHeaders = req.headers.get("access-control-request-headers") || "authorization, x-client-info, apikey, content-type";
@@ -95,7 +118,8 @@ serve(async (req) => {
 			return new Response(JSON.stringify({ ok: false, error: "Missing required fields" }), { status: 400, headers: { "Content-Type": "application/json" } });
 		}
 
-		const receiptBytes = await createPdf("Payment Receipt", [
+		// Receipt preview: JPG image
+		const receiptJpg = await createImage(1100, 800, "Payment Receipt", [
 			`Date: ${new Date().toLocaleDateString()}`,
 			`Receipt #: ${Date.now()}`,
 			`Received from: ${name}`,
@@ -103,9 +127,10 @@ serve(async (req) => {
 			`Email: ${email}`,
 			`Property Size: ${squareMeters} sq. meters`,
 			`Amount Paid: $${Number(amount).toLocaleString()}`,
-		]);
+		], "jpg");
 
-		const certBytes = await createPdf("Certificate of Ownership", [
+		// Certificate preview: PNG image
+		const certPng = await createImage(1100, 800, "Certificate of Ownership", [
 			`Project: ${COMPANY.projectName}`,
 			`Owner Name: ${name}`,
 			`Owner Email: ${email}`,
@@ -113,12 +138,24 @@ serve(async (req) => {
 			`Property Size: ${squareMeters} sq. meters`,
 			`Consideration Amount: $${Number(amount).toLocaleString()}`,
 			`Signed by: ${COMPANY.ceoName}, ${COMPANY.ceoTitle}`,
+		], "png");
+
+		// Deed of Assignment preview: PDF
+		const deedPdf = await createPdf("Deed of Assignment", [
+			`Assignor: ${COMPANY.name}`,
+			`Assignee: ${name}`,
+			`Project: ${COMPANY.projectName}`,
+			`Property Size: ${squareMeters} sq. meters`,
+			`Consideration: $${Number(amount).toLocaleString()}`,
+			`This deed transfers and assigns all rights, title and interest in the property to the Assignee, subject to applicable laws and covenants.`,
+			`Signed by: ${COMPANY.ceoName}, ${COMPANY.ceoTitle}`,
 		]);
 
 		return new Response(JSON.stringify({
 			ok: true,
-			receiptBase64: bytesToBase64(receiptBytes),
-			certificateBase64: bytesToBase64(certBytes),
+			receiptJpgBase64: bytesToBase64(receiptJpg),
+			certificatePngBase64: bytesToBase64(certPng),
+			deedPdfBase64: bytesToBase64(deedPdf),
 		}), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
 	} catch (err) {
 		const reqAllowHeaders = req.headers.get("access-control-request-headers") || "authorization, x-client-info, apikey, content-type";
