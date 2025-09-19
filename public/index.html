@@ -58,8 +58,10 @@
                     headers,
                     body: JSON.stringify(payload),
                 });
-                const body = await res.json();
-                if (!res.ok || !body.ok) throw new Error(body.error || 'Request failed');
+                const raw = await res.text();
+                let body;
+                try { body = JSON.parse(raw); } catch { body = null; }
+                if (!res.ok || !body?.ok) throw new Error(body?.error || `Request failed: ${res.status} ${raw.slice(0,200)}`);
                 status.textContent = 'Success! Documents have been emailed.';
                 status.className = 'success';
                 form.reset();
@@ -96,17 +98,31 @@
                     headers,
                     body: JSON.stringify(payload),
                 });
-                const body = await res.json();
-                if (!res.ok || !body.ok) throw new Error(body.error || 'Preview failed');
+                const raw = await res.text();
+                let body;
+                try { body = JSON.parse(raw); } catch { body = null; }
+                if (!res.ok || !body?.ok) throw new Error(body?.error || `Preview failed: ${res.status} ${raw.slice(0,200)}`);
 
-                const recUrl = `data:image/jpeg;base64,${body.receiptJpgBase64}`;
-                const certUrl = `data:image/png;base64,${body.certificatePngBase64}`;
-                const deedUrl = `data:application/pdf;base64,${body.deedPdfBase64}`;
+                // Get the base64 data from response (all PDFs now)
+                const recPdf = body.receiptBase64 || null;
+                const certPdf = body.certificateBase64 || null;
+                const deedPdf = body.deedPdfBase64 || null;
+
+                // Create data URLs for PDFs
+                let recUrl = null;
+                let certUrl = null;
+                let deedUrl = null;
+                if (recPdf) recUrl = `data:application/pdf;base64,${recPdf}`;
+                if (certPdf) certUrl = `data:application/pdf;base64,${certPdf}`;
+                if (deedPdf) deedUrl = `data:application/pdf;base64,${deedPdf}`;
+
+                if (!recUrl || !certUrl || !deedUrl) throw new Error('Preview data missing from server response');
 
                 const preview = document.getElementById('preview');
                 const receiptFrame = document.getElementById('receiptFrame');
                 const certFrame = document.getElementById('certFrame');
                 const deedFrame = document.getElementById('deedFrame');
+                
                 if (receiptFrame && certFrame && deedFrame && preview) {
                     receiptFrame.src = recUrl;
                     certFrame.src = certUrl;
