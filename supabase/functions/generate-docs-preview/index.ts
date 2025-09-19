@@ -5,7 +5,6 @@ import {
 	StandardFonts,
 	rgb,
 } from "https://esm.sh/pdf-lib@1.17.1";
-import { Image as Img, Font as ImgFont, RGBA } from "https://deno.land/x/imagescript@1.2.15/mod.ts";
 
 const COMPANY = {
 	name: "Acme Real Estate Ltd.",
@@ -74,27 +73,6 @@ function bytesToBase64(bytes: Uint8Array): string {
 	return btoa(binary);
 }
 
-async function createImage(width: number, height: number, title: string, lines: string[], output: "png" | "jpg"): Promise<Uint8Array> {
-	const img = new Img(width, height);
-	img.fill(new RGBA(250, 250, 250, 255));
-
-	// Load a font from Google Fonts (Roboto). Cache behavior is up to the platform.
-	const fontUrl = "https://raw.githubusercontent.com/google/fonts/main/apache/roboto/Roboto-Regular.ttf";
-	const fontBytes = await (await fetch(fontUrl)).arrayBuffer();
-	const fontTitle = await ImgFont.from(fontBytes, 36);
-	const fontBody = await ImgFont.from(fontBytes, 22);
-
-	let y = 40;
-	await img.print(fontTitle, 40, y, title, new RGBA(0, 0, 0, 255));
-	y += 50;
-	for (const line of lines) {
-		await img.print(fontBody, 40, y, line, new RGBA(30, 30, 30, 255));
-		y += 32;
-	}
-
-	if (output === "png") return await img.encode();
-	return await img.encodeJPEG(0.9);
-}
 
 serve(async (req) => {
 	try {
@@ -118,50 +96,26 @@ serve(async (req) => {
 			return new Response(JSON.stringify({ ok: false, error: "Missing required fields" }), { status: 400, headers: { "Content-Type": "application/json" } });
 		}
 
-		let receiptJpg: Uint8Array | null = null;
-		let certPng: Uint8Array | null = null;
-		let receiptPdfFallback: Uint8Array | null = null;
-		let certPdfFallback: Uint8Array | null = null;
-		try {
-			receiptJpg = await createImage(1100, 800, "Payment Receipt", [
-				`Date: ${new Date().toLocaleDateString()}`,
-				`Receipt #: ${Date.now()}`,
-				`Received from: ${name}`,
-				`Phone: ${phone}`,
-				`Email: ${email}`,
-				`Property Size: ${squareMeters} sq. meters`,
-				`Amount Paid: $${Number(amount).toLocaleString()}`,
-			], "jpg");
-			certPng = await createImage(1100, 800, "Certificate of Ownership", [
-				`Project: ${COMPANY.projectName}`,
-				`Owner Name: ${name}`,
-				`Owner Email: ${email}`,
-				`Owner Phone: ${phone}`,
-				`Property Size: ${squareMeters} sq. meters`,
-				`Consideration Amount: $${Number(amount).toLocaleString()}`,
-				`Signed by: ${COMPANY.ceoName}, ${COMPANY.ceoTitle}`,
-			], "png");
-		} catch (_e) {
-			// Fallback to PDFs if image rendering fails (e.g., font fetch blocked)
-			receiptPdfFallback = await createPdf("Payment Receipt", [
-				`Date: ${new Date().toLocaleDateString()}`,
-				`Receipt #: ${Date.now()}`,
-				`Received from: ${name}`,
-				`Phone: ${phone}`,
-				`Email: ${email}`,
-				`Property Size: ${squareMeters} sq. meters`,
-				`Amount Paid: $${Number(amount).toLocaleString()}`,
-			]);
-			certPdfFallback = await createPdf("Certificate of Ownership", [
-				`Project: ${COMPANY.projectName}`,
-				`Owner Name: ${name}`,
-				`Owner Email: ${email}`,
-				`Owner Phone: ${phone}`,
-				`Property Size: ${squareMeters} sq. meters`,
-				`Consideration Amount: $${Number(amount).toLocaleString()}`,
-				`Signed by: ${COMPANY.ceoName}, ${COMPANY.ceoTitle}`,
-			]);
-		}
+		// Simplified: all PDFs for reliable preview
+		const receiptBytes = await createPdf("Payment Receipt", [
+			`Date: ${new Date().toLocaleDateString()}`,
+			`Receipt #: ${Date.now()}`,
+			`Received from: ${name}`,
+			`Phone: ${phone}`,
+			`Email: ${email}`,
+			`Property Size: ${squareMeters} sq. meters`,
+			`Amount Paid: $${Number(amount).toLocaleString()}`,
+		]);
+
+		const certBytes = await createPdf("Certificate of Ownership", [
+			`Project: ${COMPANY.projectName}`,
+			`Owner Name: ${name}`,
+			`Owner Email: ${email}`,
+			`Owner Phone: ${phone}`,
+			`Property Size: ${squareMeters} sq. meters`,
+			`Consideration Amount: $${Number(amount).toLocaleString()}`,
+			`Signed by: ${COMPANY.ceoName}, ${COMPANY.ceoTitle}`,
+		]);
 
 		// Deed of Assignment preview: PDF
 		const deedPdf = await createPdf("Deed of Assignment", [
@@ -176,10 +130,8 @@ serve(async (req) => {
 
 		return new Response(JSON.stringify({
 			ok: true,
-			receiptJpgBase64: receiptJpg ? bytesToBase64(receiptJpg) : undefined,
-			certificatePngBase64: certPng ? bytesToBase64(certPng) : undefined,
-			receiptBase64: receiptPdfFallback ? bytesToBase64(receiptPdfFallback) : undefined,
-			certificateBase64: certPdfFallback ? bytesToBase64(certPdfFallback) : undefined,
+			receiptBase64: bytesToBase64(receiptBytes),
+			certificateBase64: bytesToBase64(certBytes),
 			deedPdfBase64: bytesToBase64(deedPdf),
 		}), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
 	} catch (err) {
