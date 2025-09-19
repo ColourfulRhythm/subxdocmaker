@@ -159,29 +159,48 @@ serve(async (req) => {
 		const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 		const SUPABASE_BUCKET = Deno.env.get("SUPABASE_BUCKET") || "documents";
 		if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-			throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set");
+			throw new Error("config: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set");
 		}
 		const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+		// Ensure bucket exists (idempotent)
+		try {
+			// @ts-ignore createBucket exists on storage admin
+			// If bucket already exists, this will error; ignore that
+			// deno-lint-ignore no-explicit-any
+			const rCreate: any = await (supabase as any).storage.createBucket?.(SUPABASE_BUCKET, { public: false });
+			if (rCreate && rCreate.error && !String(rCreate.error.message || "").includes("already exists")) {
+				throw rCreate.error;
+			}
+		} catch (_e) { /* ignore if bucket exists */ }
 
 		const folder = `${Date.now()}-${email.replaceAll(/[^a-zA-Z0-9._-]/g, "_")}`;
 		const receiptPath = `${folder}/receipt.pdf`;
 		const certPath = `${folder}/certificate.pdf`;
 
-		const r1 = await supabase.storage.from(SUPABASE_BUCKET).upload(receiptPath, receiptBytes, {
-			contentType: "application/pdf",
-			upsert: true,
-		});
-		if (r1.error) throw r1.error;
-		const r2 = await supabase.storage.from(SUPABASE_BUCKET).upload(certPath, certBytes, {
-			contentType: "application/pdf",
-			upsert: true,
-		});
-		if (r2.error) throw r2.error;
+		try {
+			const r1 = await supabase.storage.from(SUPABASE_BUCKET).upload(receiptPath, receiptBytes, {
+				contentType: "application/pdf",
+				upsert: true,
+			});
+			if (r1.error) throw new Error(`storage_upload_receipt: ${r1.error.message}`);
+			const r2 = await supabase.storage.from(SUPABASE_BUCKET).upload(certPath, certBytes, {
+				contentType: "application/pdf",
+				upsert: true,
+			});
+			if (r2.error) throw new Error(`storage_upload_certificate: ${r2.error.message}`);
+		} catch (e) {
+			throw new Error(`storage: ${String((e as Error).message || e)}`);
+		}
 
 		// Email attachments as base64 via Resend
 		const receiptBase64 = bytesToBase64(receiptBytes);
 		const certBase64 = bytesToBase64(certBytes);
-		await sendEmail({ to: email, name, receiptBase64, certBase64 });
+		try {
+			await sendEmail({ to: email, name, receiptBase64, certBase64 });
+		} catch (e) {
+			throw new Error(`email: ${String((e as Error).message || e)}`);
+		}
 
 		return new Response(JSON.stringify({ ok: true, message: "Documents generated, stored, and emailed." }), {
 			status: 200,
