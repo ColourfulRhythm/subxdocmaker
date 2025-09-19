@@ -5,6 +5,7 @@ import {
 	StandardFonts,
 	rgb,
 } from "https://esm.sh/pdf-lib@1.17.1";
+import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts";
 
 const COMPANY = {
 	name: "Acme Real Estate Ltd.",
@@ -83,6 +84,70 @@ async function createSimplePdf(title: string, content: string[]): Promise<Uint8A
 	}
 }
 
+async function createImageWithPuppeteer(title: string, content: string[], format: "jpeg" | "png"): Promise<string> {
+	try {
+		const browser = await puppeteer.launch({
+			headless: true,
+			args: ['--no-sandbox', '--disable-setuid-sandbox']
+		});
+		
+		const page = await browser.newPage();
+		
+		// Create HTML content
+		const html = `
+			<!DOCTYPE html>
+			<html>
+			<head>
+				<style>
+					body {
+						font-family: Arial, sans-serif;
+						margin: 40px;
+						background: white;
+						width: 800px;
+						height: 600px;
+					}
+					.title {
+						font-size: 24px;
+						font-weight: bold;
+						margin-bottom: 30px;
+						color: #000;
+					}
+					.content {
+						font-size: 14px;
+						line-height: 1.6;
+						color: #333;
+					}
+					.content div {
+						margin-bottom: 8px;
+					}
+				</style>
+			</head>
+			<body>
+				<div class="title">${title}</div>
+				<div class="content">
+					${content.map(line => `<div>${line}</div>`).join('')}
+				</div>
+			</body>
+			</html>
+		`;
+		
+		await page.setContent(html);
+		
+		const screenshot = await page.screenshot({
+			type: format,
+			quality: 90
+		});
+		
+		await browser.close();
+		
+		return bytesToBase64(new Uint8Array(screenshot));
+	} catch (error) {
+		console.error("Image creation error:", error);
+		// Fallback to PDF if image generation fails
+		throw new Error("Failed to create image");
+	}
+}
+
 serve(async (req) => {
 	// Handle CORS preflight
 	if (req.method === "OPTIONS") {
@@ -107,7 +172,7 @@ serve(async (req) => {
 			});
 		}
 
-		// Create all three PDFs
+		// Create content for each document
 		const receiptContent = [
 			`Date: ${new Date().toLocaleDateString()}`,
 			`Receipt #: ${Date.now()}`,
@@ -154,18 +219,18 @@ serve(async (req) => {
 			`Date: ${new Date().toLocaleDateString()}`,
 		];
 
-		// Generate all PDFs
-		const [receiptPdf, certificatePdf, deedPdf] = await Promise.all([
-			createSimplePdf("Payment Receipt", receiptContent),
-			createSimplePdf("Certificate of Ownership", certificateContent),
+		// Generate documents in the correct formats
+		const [receiptJpgBase64, certificatePngBase64, deedPdfBytes] = await Promise.all([
+			createImageWithPuppeteer("Payment Receipt", receiptContent, "jpeg"),
+			createImageWithPuppeteer("Certificate of Ownership", certificateContent, "png"),
 			createSimplePdf("Deed of Assignment", deedContent),
 		]);
 
 		return new Response(JSON.stringify({
 			ok: true,
-			receiptBase64: bytesToBase64(receiptPdf),
-			certificateBase64: bytesToBase64(certificatePdf),
-			deedPdfBase64: bytesToBase64(deedPdf),
+			receiptJpgBase64: receiptJpgBase64,
+			certificatePngBase64: certificatePngBase64,
+			deedPdfBase64: bytesToBase64(deedPdfBytes),
 		}), {
 			status: 200,
 			headers: { "Content-Type": "application/json", ...corsHeaders },
