@@ -103,17 +103,17 @@
                 try { body = JSON.parse(raw); } catch { body = null; }
                 if (!res.ok || !body?.ok) throw new Error(body?.error || `Preview failed: ${res.status} ${raw.slice(0,200)}`);
 
-                // Get the base64 data from response - receipt as JPG, certificate as PNG, deed as PDF
-                const recJpg = body.receiptJpgBase64 || null;
-                const certPng = body.certificatePngBase64 || null;
+                // Get the base64 data from response - receipt and certificate as SVG, deed as PDF
+                const recSvg = body.receiptJpgBase64 || null;
+                const certSvg = body.certificatePngBase64 || null;
                 const deedPdf = body.deedPdfBase64 || null;
 
-                // Create data URLs for the correct formats
+                // Create data URLs - using SVG for images (more reliable than JPG/PNG generation)
                 let recUrl = null;
                 let certUrl = null;
                 let deedUrl = null;
-                if (recJpg) recUrl = `data:image/jpeg;base64,${recJpg}`;
-                if (certPng) certUrl = `data:image/png;base64,${certPng}`;
+                if (recSvg) recUrl = `data:image/svg+xml;base64,${recSvg}`;
+                if (certSvg) certUrl = `data:image/svg+xml;base64,${certSvg}`;
                 if (deedPdf) deedUrl = `data:application/pdf;base64,${deedPdf}`;
 
                 if (!recUrl || !certUrl || !deedUrl) throw new Error('Preview data missing from server response');

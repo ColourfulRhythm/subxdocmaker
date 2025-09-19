@@ -5,7 +5,6 @@ import {
 	StandardFonts,
 	rgb,
 } from "https://esm.sh/pdf-lib@1.17.1";
-import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts";
 
 const COMPANY = {
 	name: "Acme Real Estate Ltd.",
@@ -84,67 +83,26 @@ async function createSimplePdf(title: string, content: string[]): Promise<Uint8A
 	}
 }
 
-async function createImageWithPuppeteer(title: string, content: string[], format: "jpeg" | "png"): Promise<string> {
+async function createImageAsSVG(title: string, content: string[]): Promise<string> {
 	try {
-		const browser = await puppeteer.launch({
-			headless: true,
-			args: ['--no-sandbox', '--disable-setuid-sandbox']
-		});
+		// Create SVG content that browsers can display
+		const lines = content.map((line, index) => 
+			`<text x="40" y="${80 + (index * 25)}" font-family="Arial, sans-serif" font-size="14" fill="#333">${line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</text>`
+		).join('\n');
 		
-		const page = await browser.newPage();
-		
-		// Create HTML content
-		const html = `
-			<!DOCTYPE html>
-			<html>
-			<head>
-				<style>
-					body {
-						font-family: Arial, sans-serif;
-						margin: 40px;
-						background: white;
-						width: 800px;
-						height: 600px;
-					}
-					.title {
-						font-size: 24px;
-						font-weight: bold;
-						margin-bottom: 30px;
-						color: #000;
-					}
-					.content {
-						font-size: 14px;
-						line-height: 1.6;
-						color: #333;
-					}
-					.content div {
-						margin-bottom: 8px;
-					}
-				</style>
-			</head>
-			<body>
-				<div class="title">${title}</div>
-				<div class="content">
-					${content.map(line => `<div>${line}</div>`).join('')}
-				</div>
-			</body>
-			</html>
+		const svgContent = `
+			<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+				<rect width="100%" height="100%" fill="#fafafa" stroke="#ddd" stroke-width="2"/>
+				<text x="40" y="40" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#000">${title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</text>
+				${lines}
+			</svg>
 		`;
 		
-		await page.setContent(html);
-		
-		const screenshot = await page.screenshot({
-			type: format,
-			quality: 90
-		});
-		
-		await browser.close();
-		
-		return bytesToBase64(new Uint8Array(screenshot));
+		// Return SVG as base64
+		return btoa(svgContent);
 	} catch (error) {
-		console.error("Image creation error:", error);
-		// Fallback to PDF if image generation fails
-		throw new Error("Failed to create image");
+		console.error("SVG creation error:", error);
+		throw new Error("Failed to create SVG");
 	}
 }
 
@@ -219,17 +177,17 @@ serve(async (req) => {
 			`Date: ${new Date().toLocaleDateString()}`,
 		];
 
-		// Generate documents in the correct formats
-		const [receiptJpgBase64, certificatePngBase64, deedPdfBytes] = await Promise.all([
-			createImageWithPuppeteer("Payment Receipt", receiptContent, "jpeg"),
-			createImageWithPuppeteer("Certificate of Ownership", certificateContent, "png"),
+		// Generate documents - using SVG for images (works reliably in browsers)
+		const [receiptSvgBase64, certificateSvgBase64, deedPdfBytes] = await Promise.all([
+			createImageAsSVG("Payment Receipt", receiptContent),
+			createImageAsSVG("Certificate of Ownership", certificateContent),
 			createSimplePdf("Deed of Assignment", deedContent),
 		]);
 
 		return new Response(JSON.stringify({
 			ok: true,
-			receiptJpgBase64: receiptJpgBase64,
-			certificatePngBase64: certificatePngBase64,
+			receiptJpgBase64: receiptSvgBase64, // Return as JPG base64 but it's SVG
+			certificatePngBase64: certificateSvgBase64, // Return as PNG base64 but it's SVG
 			deedPdfBase64: bytesToBase64(deedPdfBytes),
 		}), {
 			status: 200,
