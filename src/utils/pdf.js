@@ -88,6 +88,8 @@ async function generateOwnershipCertificatePdf({ company, name, phone, email, sq
 	doc.fontSize(16).text('Certificate of Ownership', { align: 'center' });
 	doc.moveDown(1);
 
+	doc.fontSize(12).text(`Project: ${company.projectName}`, { align: 'left' });
+	doc.moveDown(0.5);
 	doc.fontSize(12).text(`This is to certify that ${name} is recognized as the owner of the property described below:`, { align: 'left' });
 	doc.moveDown();
 
@@ -97,6 +99,9 @@ async function generateOwnershipCertificatePdf({ company, name, phone, email, sq
 	doc.text(`Property Size: ${squareMeters} sq. meters`);
 	doc.text(`Consideration Amount: $${Number(amount).toLocaleString()}`);
 
+	doc.moveDown(1);
+	doc.text(company.deedText, { align: 'left' });
+
 	doc.moveDown(2);
 	doc.text('This certificate is issued by:', { align: 'left' });
 	doc.text(`${company.name}`);
@@ -105,6 +110,7 @@ async function generateOwnershipCertificatePdf({ company, name, phone, email, sq
 
 	doc.moveDown(2);
 	doc.text(`Issued on: ${new Date().toLocaleDateString()}`);
+	doc.text(`Signed by: ${company.ceoName}, ${company.ceoTitle}`);
 	doc.moveDown(2);
 	doc.text('Authorized Signature: ______________________');
 

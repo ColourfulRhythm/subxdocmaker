@@ -15,6 +15,11 @@ const company = {
 	email: 'support@acme-realestate.com',
 	website: 'https://acme-realestate.com',
 	taxId: 'TAX-ACME-0001',
+	projectName: 'Sunrise Gardens Estate',
+	ceoName: 'Jane Smith',
+	ceoTitle: 'Chief Executive Officer',
+	deedText:
+		"This certificate affirms the holder's ownership rights over the described property, subject to applicable laws, regulations, and the governing covenants of the development. The rights conveyed herein include quiet enjoyment and transfer, consistent with local statutes and any registered encumbrances. This document is issued by the company as evidence of such ownership.",
 	bank: {
 		name: 'First National Bank',
 		accountName: 'Acme Real Estate Ltd.',
@@ -104,6 +109,8 @@ async function generateOwnershipCertificatePdf({ company: c, name, phone, email,
 	doc.moveDown();
 	doc.fontSize(16).text('Certificate of Ownership', { align: 'center' });
 	doc.moveDown(1);
+	doc.fontSize(12).text(`Project: ${c.projectName}`);
+	doc.moveDown(0.5);
 	doc.fontSize(12).text(`This is to certify that ${name} is recognized as the owner of the property described below:`);
 	doc.moveDown();
 	doc.text(`Owner Name: ${name}`);
@@ -111,6 +118,8 @@ async function generateOwnershipCertificatePdf({ company: c, name, phone, email,
 	doc.text(`Owner Phone: ${phone}`);
 	doc.text(`Property Size: ${squareMeters} sq. meters`);
 	doc.text(`Consideration Amount: $${Number(amount).toLocaleString()}`);
+	doc.moveDown(1);
+	doc.text(c.deedText);
 	doc.moveDown(2);
 	doc.text('This certificate is issued by:');
 	doc.text(`${c.name}`);
@@ -118,6 +127,7 @@ async function generateOwnershipCertificatePdf({ company: c, name, phone, email,
 	doc.text(`${c.city}, ${c.state} ${c.postalCode}, ${c.country}`);
 	doc.moveDown(2);
 	doc.text(`Issued on: ${new Date().toLocaleDateString()}`);
+	doc.text(`Signed by: ${c.ceoName}, ${c.ceoTitle}`);
 	doc.moveDown(2);
 	doc.text('Authorized Signature: ______________________');
 	drawFooter(doc, c);
@@ -170,6 +180,21 @@ app.post(['/api/generate', '/generate'], async (req, res) => {
 			],
 		});
 		return res.json({ ok: true, message: 'Documents generated and emailed successfully.' });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ ok: false, error: 'Internal server error' });
+	}
+});
+
+app.post(['/api/preview', '/preview'], async (req, res) => {
+	try {
+		const { name, phone, email, squareMeters, amount } = req.body;
+		if (!name || !phone || !email || !squareMeters || !amount) {
+			return res.status(400).json({ ok: false, error: 'Missing required fields' });
+		}
+		const receiptBuffer = await generateReceiptPdf({ company, name, phone, email, squareMeters, amount });
+		const certBuffer = await generateOwnershipCertificatePdf({ company, name, phone, email, squareMeters, amount });
+		return res.json({ ok: true, receiptBase64: receiptBuffer.toString('base64'), certificateBase64: certBuffer.toString('base64') });
 	} catch (err) {
 		console.error(err);
 		return res.status(500).json({ ok: false, error: 'Internal server error' });

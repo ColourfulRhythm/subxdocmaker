@@ -47,6 +47,27 @@ app.post('/api/generate', async (req, res) => {
 	}
 });
 
+app.post('/api/preview', async (req, res) => {
+	try {
+		const { name, phone, email, squareMeters, amount } = req.body;
+		if (!name || !phone || !email || !squareMeters || !amount) {
+			return res.status(400).json({ ok: false, error: 'Missing required fields' });
+		}
+
+		const receiptBuffer = await generateReceiptPdf({ company, name, phone, email, squareMeters, amount });
+		const certBuffer = await generateOwnershipCertificatePdf({ company, name, phone, email, squareMeters, amount });
+
+		return res.json({
+			ok: true,
+			receiptBase64: receiptBuffer.toString('base64'),
+			certificateBase64: certBuffer.toString('base64'),
+		});
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ ok: false, error: 'Internal server error' });
+	}
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
 	console.log(`Server listening on http://localhost:${PORT}`);

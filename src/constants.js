@@ -11,6 +11,11 @@ module.exports = {
 	email: 'support@acme-realestate.com',
 	website: 'https://acme-realestate.com',
 	taxId: 'TAX-ACME-0001',
+	projectName: 'Sunrise Gardens Estate',
+	ceoName: 'Jane Smith',
+	ceoTitle: 'Chief Executive Officer',
+	deedText:
+		'This certificate affirms the holder\'s ownership rights over the described property, subject to applicable laws, regulations, and the governing covenants of the development. The rights conveyed herein include quiet enjoyment and transfer, consistent with local statutes and any registered encumbrances. This document is issued by the company as evidence of such ownership.',
 	bank: {
 		name: 'First National Bank',
 		accountName: 'Acme Real Estate Ltd.',

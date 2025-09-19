@@ -47,6 +47,44 @@
                 status.className = 'error';
             }
         }
+
+        async function previewDocs(event) {
+            event.preventDefault();
+            const form = document.querySelector('form');
+            const data = Object.fromEntries(new FormData(form).entries());
+            const payload = {
+                name: data.name?.trim(),
+                phone: data.phone?.trim(),
+                email: data.email?.trim(),
+                squareMeters: data.squareMeters?.trim(),
+                amount: data.amount?.trim(),
+            };
+
+            const status = document.getElementById('status');
+            status.textContent = 'Generating preview...';
+            status.className = '';
+
+            try {
+                const res = await fetch('/api/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const body = await res.json();
+                if (!res.ok || !body.ok) throw new Error(body.error || 'Preview failed');
+
+                const recUrl = `data:application/pdf;base64,${body.receiptBase64}`;
+                const certUrl = `data:application/pdf;base64,${body.certificateBase64}`;
+
+                window.open(recUrl, '_blank');
+                window.open(certUrl, '_blank');
+                status.textContent = 'Preview opened in new tabs.';
+                status.className = 'success';
+            } catch (err) {
+                status.textContent = 'Error: ' + err.message;
+                status.className = 'error';
+            }
+        }
     </script>
 </head>
 <body>
@@ -68,7 +106,10 @@
             <label for="amount">Amount</label>
             <input id="amount" name="amount" type="number" step="0.01" required />
 
-            <button type="submit">Generate & Send</button>
+            <div style="display:flex; gap:8px;">
+                <button type="button" onclick="previewDocs(event)">Generate PDFs</button>
+                <button type="submit">Send Email</button>
+            </div>
         </form>
         <div id="status"></div>
     </div>
