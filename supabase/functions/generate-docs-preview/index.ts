@@ -1,5 +1,5 @@
-// deno-lint-ignore-file no-explicit-any
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
 	PDFDocument,
 	StandardFonts,
@@ -18,86 +18,97 @@ const COMPANY = {
 	email: "support@acme-realestate.com",
 	website: "https://acme-realestate.com",
 	taxId: "TAX-ACME-0001",
-	projectName: "Sunrise Gardens Estate",
-	ceoName: "Jane Smith",
+	bank: {
+		name: "First National Bank",
+		accountName: "Acme Real Estate Ltd.",
+		accountNumber: "1234567890",
+		routingNumber: "1100000",
+	},
+	projectName: "Grand View Estates",
+	ceoName: "Jane Doe",
 	ceoTitle: "Chief Executive Officer",
+	deedText: "This Deed of Assignment is made on this day, transferring all rights, title, and interest in the property located at [Property Address] from [Assignor Name] to [Assignee Name], in consideration of the sum of [Amount].",
 };
 
-type Payload = {
-	name: string;
-	phone: string;
-	email: string;
-	squareMeters: string | number;
-	amount: string | number;
+const corsHeaders = {
+	"Access-Control-Allow-Origin": "*",
+	"Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+	"Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-
-async function createPdf(title: string, lines: string[]): Promise<Uint8Array> {
-	const pdfDoc = await PDFDocument.create();
-	const page = pdfDoc.addPage([595.28, 841.89]);
-	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-	const { width, height } = page.getSize();
-	const margin = 50;
-	let y = height - margin;
-
-	page.drawText(COMPANY.name, { x: margin, y, size: 18, font, color: rgb(0, 0, 0) });
-	y -= 22;
-	page.drawText(`${COMPANY.addressLine1}, ${COMPANY.addressLine2}`, { x: margin, y, size: 10, font });
-	y -= 14;
-	page.drawText(`${COMPANY.city}, ${COMPANY.state} ${COMPANY.postalCode}, ${COMPANY.country}`, { x: margin, y, size: 10, font });
-	y -= 14;
-	page.drawText(`Phone: ${COMPANY.phone}  Email: ${COMPANY.email}`, { x: margin, y, size: 10, font });
-	y -= 14;
-	page.drawText(`Website: ${COMPANY.website}`, { x: margin, y, size: 10, font });
-	y -= 24;
-
-	page.drawText(title, { x: margin, y, size: 16, font });
-	y -= 20;
-
-	for (const line of lines) {
-		page.drawText(line, { x: margin, y, size: 12, font });
-		y -= 16;
-	}
-
-	const bytes = await pdfDoc.save();
-	return bytes;
-}
 
 function bytesToBase64(bytes: Uint8Array): string {
-	let binary = "";
-	const chunkSize = 0x8000;
-	for (let i = 0; i < bytes.length; i += chunkSize) {
-		const chunk = bytes.subarray(i, i + chunkSize);
-		binary += String.fromCharCode.apply(null, Array.from(chunk) as unknown as number[]);
-	}
+	// deno-lint-ignore no-deprecated-deno-api
+	const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
 	// deno-lint-ignore no-deprecated-deno-api
 	return btoa(binary);
 }
 
+async function createSimplePdf(title: string, content: string[]): Promise<Uint8Array> {
+	try {
+		const pdfDoc = await PDFDocument.create();
+		const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+		const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+		
+		const page = pdfDoc.addPage([595, 842]); // A4 size
+		const { width, height } = page.getSize();
+		
+		let y = height - 50;
+		
+		// Title
+		page.drawText(title, {
+			x: 50,
+			y: y,
+			size: 24,
+			font: boldFont,
+			color: rgb(0, 0, 0),
+		});
+		y -= 50;
+		
+		// Content
+		for (const line of content) {
+			page.drawText(line, {
+				x: 50,
+				y: y,
+				size: 12,
+				font: font,
+				color: rgb(0, 0, 0),
+			});
+			y -= 25;
+		}
+		
+		return await pdfDoc.save();
+	} catch (error) {
+		console.error("PDF creation error:", error);
+		throw new Error("Failed to create PDF");
+	}
+}
 
 serve(async (req) => {
+	// Handle CORS preflight
+	if (req.method === "OPTIONS") {
+		return new Response(null, { status: 204, headers: corsHeaders });
+	}
+
 	try {
-		const reqAllowHeaders = req.headers.get("access-control-request-headers") || "authorization, x-client-info, apikey, content-type";
-		const reqAllowMethod = req.headers.get("access-control-request-method") || "POST";
-		const corsHeaders = {
-			"Access-Control-Allow-Origin": "*",
-			"Access-Control-Allow-Headers": reqAllowHeaders,
-			"Access-Control-Allow-Methods": `${reqAllowMethod}, OPTIONS`,
-			"Access-Control-Max-Age": "86400",
-		};
-		if (req.method === "OPTIONS") {
-			return new Response(null, { status: 204, headers: corsHeaders });
-		}
 		if (req.method !== "POST") {
-			return new Response(JSON.stringify({ ok: false, error: "Method not allowed" }), { status: 405, headers: { "Content-Type": "application/json" } });
-		}
-		const payload = (await req.json()) as Payload;
-		const { name, phone, email, squareMeters, amount } = payload;
-		if (!name || !phone || !email || !squareMeters || !amount) {
-			return new Response(JSON.stringify({ ok: false, error: "Missing required fields" }), { status: 400, headers: { "Content-Type": "application/json" } });
+			return new Response(JSON.stringify({ ok: false, error: "Method not allowed" }), {
+				status: 405,
+				headers: { "Content-Type": "application/json", ...corsHeaders },
+			});
 		}
 
-		// Simplified: all PDFs for reliable preview
-		const receiptBytes = await createPdf("Payment Receipt", [
+		const payload = await req.json();
+		const { name, phone, email, squareMeters, amount } = payload;
+		
+		if (!name || !phone || !email || !squareMeters || !amount) {
+			return new Response(JSON.stringify({ ok: false, error: "Missing required fields" }), {
+				status: 400,
+				headers: { "Content-Type": "application/json", ...corsHeaders },
+			});
+		}
+
+		// Create all three PDFs
+		const receiptContent = [
 			`Date: ${new Date().toLocaleDateString()}`,
 			`Receipt #: ${Date.now()}`,
 			`Received from: ${name}`,
@@ -105,49 +116,69 @@ serve(async (req) => {
 			`Email: ${email}`,
 			`Property Size: ${squareMeters} sq. meters`,
 			`Amount Paid: $${Number(amount).toLocaleString()}`,
-		]);
+			``,
+			`Company: ${COMPANY.name}`,
+			`Address: ${COMPANY.addressLine1}`,
+			`${COMPANY.city}, ${COMPANY.state} ${COMPANY.postalCode}`,
+			`Phone: ${COMPANY.phone}`,
+			`Email: ${COMPANY.email}`,
+		];
 
-		const certBytes = await createPdf("Certificate of Ownership", [
+		const certificateContent = [
 			`Project: ${COMPANY.projectName}`,
 			`Owner Name: ${name}`,
 			`Owner Email: ${email}`,
 			`Owner Phone: ${phone}`,
 			`Property Size: ${squareMeters} sq. meters`,
 			`Consideration Amount: $${Number(amount).toLocaleString()}`,
+			``,
+			`This certificate confirms ownership of the above property`,
+			`in the ${COMPANY.projectName} development.`,
+			``,
 			`Signed by: ${COMPANY.ceoName}, ${COMPANY.ceoTitle}`,
-		]);
+			`Company: ${COMPANY.name}`,
+			`Date: ${new Date().toLocaleDateString()}`,
+		];
 
-		// Deed of Assignment preview: PDF
-		const deedPdf = await createPdf("Deed of Assignment", [
+		const deedContent = [
 			`Assignor: ${COMPANY.name}`,
 			`Assignee: ${name}`,
-			`Project: ${COMPANY.projectName}`,
-			`Property Size: ${squareMeters} sq. meters`,
+			`Property: ${COMPANY.projectName} - ${squareMeters} sq. meters`,
 			`Consideration: $${Number(amount).toLocaleString()}`,
-			`This deed transfers and assigns all rights, title and interest in the property to the Assignee, subject to applicable laws and covenants.`,
+			``,
+			`This deed transfers and assigns all rights, title and interest`,
+			`in the property to the Assignee, subject to applicable laws`,
+			`and covenants.`,
+			``,
 			`Signed by: ${COMPANY.ceoName}, ${COMPANY.ceoTitle}`,
+			`Date: ${new Date().toLocaleDateString()}`,
+		];
+
+		// Generate all PDFs
+		const [receiptPdf, certificatePdf, deedPdf] = await Promise.all([
+			createSimplePdf("Payment Receipt", receiptContent),
+			createSimplePdf("Certificate of Ownership", certificateContent),
+			createSimplePdf("Deed of Assignment", deedContent),
 		]);
 
 		return new Response(JSON.stringify({
 			ok: true,
-			receiptBase64: bytesToBase64(receiptBytes),
-			certificateBase64: bytesToBase64(certBytes),
+			receiptBase64: bytesToBase64(receiptPdf),
+			certificateBase64: bytesToBase64(certificatePdf),
 			deedPdfBase64: bytesToBase64(deedPdf),
-		}), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
-	} catch (err) {
-		const reqAllowHeaders = req.headers.get("access-control-request-headers") || "authorization, x-client-info, apikey, content-type";
-		const reqAllowMethod = req.headers.get("access-control-request-method") || "POST";
-		const corsHeaders = {
-			"Access-Control-Allow-Origin": "*",
-			"Access-Control-Allow-Headers": reqAllowHeaders,
-			"Access-Control-Allow-Methods": `${reqAllowMethod}, OPTIONS`,
-			"Access-Control-Max-Age": "86400",
-		};
-		return new Response(JSON.stringify({ ok: false, error: String(err?.message || err) }), {
+		}), {
+			status: 200,
+			headers: { "Content-Type": "application/json", ...corsHeaders },
+		});
+
+	} catch (error) {
+		console.error("Preview generation error:", error);
+		return new Response(JSON.stringify({
+			ok: false,
+			error: error instanceof Error ? error.message : "Unknown error occurred",
+		}), {
 			status: 500,
 			headers: { "Content-Type": "application/json", ...corsHeaders },
 		});
 	}
 });
-
-
