@@ -12,6 +12,10 @@
         button { margin-top: 16px; padding: 10px 14px; }
         .success { margin-top: 16px; color: green; }
         .error { margin-top: 16px; color: red; }
+        .preview-pane { margin-top: 20px; }
+        .frames { display: grid; grid-template-columns: 1fr; gap: 12px; }
+        @media (min-width: 900px) { .frames { grid-template-columns: 1fr 1fr; } }
+        .frames iframe { width: 100%; height: 65vh; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; }
     </style>
     <script>
         // Supabase function endpoints (deployed in your project)
@@ -85,9 +89,16 @@
                 const recUrl = `data:application/pdf;base64,${body.receiptBase64}`;
                 const certUrl = `data:application/pdf;base64,${body.certificateBase64}`;
 
-                window.open(recUrl, '_blank');
-                window.open(certUrl, '_blank');
-                status.textContent = 'Preview opened in new tabs.';
+                const preview = document.getElementById('preview');
+                const receiptFrame = document.getElementById('receiptFrame');
+                const certFrame = document.getElementById('certFrame');
+                if (receiptFrame && certFrame && preview) {
+                    receiptFrame.src = recUrl;
+                    certFrame.src = certUrl;
+                    preview.style.display = '';
+                }
+
+                status.textContent = 'Preview ready below.';
                 status.className = 'success';
             } catch (err) {
                 status.textContent = 'Error: ' + err.message;
@@ -121,6 +132,14 @@
             </div>
         </form>
         <div id="status"></div>
+
+        <div id="preview" class="preview-pane" style="display:none;">
+            <h2>Preview</h2>
+            <div class="frames">
+                <iframe id="receiptFrame" title="Receipt Preview"></iframe>
+                <iframe id="certFrame" title="Certificate Preview"></iframe>
+            </div>
+        </div>
     </div>
 </body>
 </html>
