@@ -197,6 +197,21 @@ serve(async (req) => {
 			throw new Error(`storage: ${String((e as Error).message || e)}`);
 		}
 
+		// Optional DB insert: store submission metadata (does not fail the whole request)
+		try {
+			await supabase.from('submissions').insert({
+				name,
+				phone,
+				email,
+				square_meters: Number(squareMeters),
+				amount: Number(amount),
+				receipt_path: receiptPath,
+				certificate_path: certPath,
+			});
+		} catch (e) {
+			console.log('db insert error:', e);
+		}
+
 		// Email attachments as base64 via Resend
 		const receiptBase64 = bytesToBase64(receiptBytes);
 		const certBase64 = bytesToBase64(certBytes);
