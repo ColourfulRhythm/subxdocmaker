@@ -57,3 +57,4 @@ curl -X POST "https://YOUR_PROJECT_REF.functions.supabase.co/generate-docs" \
     "amount":50000
   }'
 ```
+# subxdocmaker
