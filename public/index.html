@@ -18,12 +18,17 @@
         .frames iframe { width: 100%; height: 65vh; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; }
     </style>
     <script>
-        // Supabase function endpoints (deployed in your project)
-        window.API_GENERATE_URL = 'https://kdisvxgqqskpxgxzbbet.functions.supabase.co/generate-docs';
-        window.API_PREVIEW_URL  = 'https://kdisvxgqqskpxgxzbbet.functions.supabase.co/generate-docs-preview';
-        // Provide your Supabase anon key to authorize Edge Function calls (required by gateway)
-        // Set at build-time or inline here.
-        window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtkaXN2eGdxcXNrcHhneHpiYmV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyOTUwMTMsImV4cCI6MjA3Mzg3MTAxM30.LZgSUHWQgAzYREA4IZF7h1DAPdL4JBRgn0U-T6o7LFE';
+        // Auto-select backend: Supabase on hosted, Node on localhost
+        const isLocal = ['localhost','127.0.0.1'].includes(location.hostname);
+        if (isLocal) {
+            window.API_GENERATE_URL = '/api/generate';
+            window.API_PREVIEW_URL  = '/api/preview';
+            window.SUPABASE_ANON_KEY = '';
+        } else {
+            window.API_GENERATE_URL = 'https://kdisvxgqqskpxgxzbbet.functions.supabase.co/generate-docs';
+            window.API_PREVIEW_URL  = 'https://kdisvxgqqskpxgxzbbet.functions.supabase.co/generate-docs-preview';
+            window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtkaXN2eGdxcXNrcHhneHpiYmV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyOTUwMTMsImV4cCI6MjA3Mzg3MTAxM30.LZgSUHWQgAzYREA4IZF7h1DAPdL4JBRgn0U-T6o7LFE';
+        }
     </script>
     <script>
         // Configurable API URLs: set window.API_GENERATE_URL and window.API_PREVIEW_URL for Supabase
@@ -41,6 +46,7 @@
                 email: data.email?.trim(),
                 squareMeters: data.squareMeters?.trim(),
                 amount: data.amount?.trim(),
+                paymentRef: data.paymentRef?.trim(),
             };
 
             const status = document.getElementById('status');
@@ -81,6 +87,7 @@
                 email: data.email?.trim(),
                 squareMeters: data.squareMeters?.trim(),
                 amount: data.amount?.trim(),
+                paymentRef: data.paymentRef?.trim(),
             };
 
             const status = document.getElementById('status');
@@ -157,6 +164,9 @@
 
             <label for="amount">Amount</label>
             <input id="amount" name="amount" type="number" step="0.01" required />
+
+            <label for="paymentRef">Receipt payment reference #</label>
+            <input id="paymentRef" name="paymentRef" placeholder="e.g. TRX-12345" />
 
             <div style="display:flex; gap:8px;">
                 <button type="button" onclick="previewDocs(event)">Generate PDFs</button>
