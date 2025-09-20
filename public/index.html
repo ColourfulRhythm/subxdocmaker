@@ -30,6 +30,8 @@
             window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtkaXN2eGdxcXNrcHhneHpiYmV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyOTUwMTMsImV4cCI6MjA3Mzg3MTAxM30.LZgSUHWQgAzYREA4IZF7h1DAPdL4JBRgn0U-T6o7LFE';
         }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script>
         // Configurable API URLs: set window.API_GENERATE_URL and window.API_PREVIEW_URL for Supabase
         // Example: window.API_GENERATE_URL = 'https://YOUR_PROJECT_REF.functions.supabase.co/generate-docs'
@@ -39,6 +41,7 @@
             event.preventDefault();
             const form = event.target;
             const data = Object.fromEntries(new FormData(form).entries());
+            const useStyled = document.getElementById('useStyled')?.checked;
 
             const payload = {
                 name: data.name?.trim(),
@@ -48,6 +51,21 @@
                 amount: data.amount?.trim(),
                 paymentRef: data.paymentRef?.trim(),
             };
+
+            if (useStyled) {
+                // Generate styled PDFs client-side to match preview
+                const styled = await generateStyledPdfs({
+                    name: payload.name,
+                    phone: payload.phone,
+                    email: payload.email,
+                    squareMeters: payload.squareMeters,
+                    amount: payload.amount,
+                    paymentRef: payload.paymentRef,
+                });
+                payload.receiptBase64 = styled.receiptBase64;
+                payload.certBase64 = styled.certBase64;
+                payload.deedBase64 = styled.deedBase64;
+            }
 
             const status = document.getElementById('status');
             status.textContent = 'Generating and sending documents...';
@@ -168,6 +186,10 @@
             <label for="paymentRef">Receipt payment reference #</label>
             <input id="paymentRef" name="paymentRef" placeholder="e.g. TRX-12345" />
 
+            <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+                <input id="useStyled" type="checkbox" /> Use styled PDFs (match preview)
+            </label>
+
             <div style="display:flex; gap:8px;">
                 <button type="button" onclick="previewDocs(event)">Generate PDFs</button>
                 <button type="submit">Send Email</button>
@@ -180,10 +202,109 @@
             <div class="frames">
                 <iframe id="receiptFrame" title="Receipt Preview"></iframe>
                 <iframe id="certFrame" title="Certificate Preview"></iframe>
-                <iframe id="deedFrame" title="Deed of Assignment Preview"></iframe>
+                <iframe id="deedFrame" title="Deed of Sale Preview"></iframe>
             </div>
         </div>
     </div>
+
+    <!-- Hidden styled templates for client-side PDF rendering -->
+    <style>
+        .doc-a4 { width: 794px; padding: 32px; background: #fff; color: #000; border: 1px solid #ddd; }
+        .brand { text-align:center; color:#2c3e50; }
+        .muted { color:#7f8c8d; }
+        .section { margin-top: 16px; padding: 12px; border: 1px solid #bdc3c7; background:#f8f9fa; }
+        .section h3 { margin: 0 0 8px 0; color:#2c3e50; }
+        .footer { margin-top: 24px; font-size: 11px; color:#666; text-align:center; }
+        .rule { border: 0; border-top: 2px solid #3498db; margin: 12px 0; }
+    </style>
+    <div id="tpl-receipt" class="doc-a4" style="position:absolute;left:-99999px;top:-99999px;">
+        <div class="brand">
+            <div id="rc-company" style="font-size:22px;font-weight:700;">Focal Point Property Development and Management Services Ltd.</div>
+            <div id="rc-address" class="muted" style="font-size:12px;">2 Seasons, Off Kobape-Abeokuta Expressway, Gbako Village, Abeokuta, Ogun State, Nigeria</div>
+        </div>
+        <hr class="rule"/>
+        <div style="text-align:center;font-size:20px;font-weight:700;color:#2c3e50;">PAYMENT RECEIPT</div>
+        <div id="rc-meta" class="muted" style="text-align:center;font-size:12px;"></div>
+        <div class="section">
+            <h3>Customer Information</h3>
+            <div id="rc-customer"></div>
+        </div>
+        <div class="section">
+            <h3>Payment Details</h3>
+            <div id="rc-payment"></div>
+        </div>
+        <div class="footer">Focal Point Property Development and Management Services Ltd. | www.subxhq.com | subx@focalpointdev.com</div>
+    </div>
+
+    <div id="tpl-cert" class="doc-a4" style="position:absolute;left:-99999px;top:-99999px;">
+        <div class="brand">
+            <div style="font-size:22px;font-weight:700;">Focal Point Property Development and Management Services Ltd.</div>
+            <div class="muted" style="font-size:12px;">2 Seasons, Off Kobape-Abeokuta Expressway, Gbako Village, Abeokuta, Ogun State, Nigeria</div>
+        </div>
+        <hr class="rule"/>
+        <div style="text-align:center;font-size:24px;font-weight:700;color:#2c3e50;">CERTIFICATE OF OWNERSHIP</div>
+        <div id="ct-intro" class="muted" style="text-align:center;margin-top:6px;"></div>
+        <div class="section">
+            <h3>Property Details</h3>
+            <div id="ct-prop"></div>
+        </div>
+        <div class="footer">Focal Point Property Development and Management Services Ltd. | www.subxhq.com | subx@focalpointdev.com</div>
+    </div>
+
+    <div id="tpl-deed" class="doc-a4" style="position:absolute;left:-99999px;top:-99999px;">
+        <div class="brand">
+            <div style="font-size:22px;font-weight:700;">Focal Point Property Development and Management Services Ltd.</div>
+            <div class="muted" style="font-size:12px;">2 Seasons, Off Kobape-Abeokuta Expressway, Gbako Village, Abeokuta, Ogun State, Nigeria</div>
+        </div>
+        <hr class="rule"/>
+        <div style="text-align:center;font-size:20px;font-weight:700;color:#2c3e50;">DEED OF SALE</div>
+        <div class="section">
+            <div id="dd-body"></div>
+        </div>
+        <div class="footer">Focal Point Property Development and Management Services Ltd. | www.subxhq.com | subx@focalpointdev.com</div>
+    </div>
+
+    <script>
+        async function elementToPdfBase64(el) {
+            const { jsPDF } = window.jspdf;
+            const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff' });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = pageWidth;
+            const imgHeight = canvas.height * (imgWidth / canvas.width);
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+            // If content overflows one page, we could add pages; for now assume one page
+            const dataUri = pdf.output('datauristring');
+            return dataUri.split(',')[1];
+        }
+
+        async function generateStyledPdfs({ name, phone, email, squareMeters, amount, paymentRef }) {
+            // Populate Receipt
+            const rcMeta = document.getElementById('rc-meta');
+            rcMeta.textContent = `Receipt #: RCP-${Date.now()}    Date: ${new Date().toLocaleDateString()}    Payment Ref #: ${paymentRef || '-'}`;
+            const rcCust = document.getElementById('rc-customer');
+            rcCust.innerHTML = `Name: ${name}<br/>Phone: ${phone}<br/>Email: ${email}`;
+            const rcPay = document.getElementById('rc-payment');
+            rcPay.innerHTML = `Property Size: ${squareMeters} sq. meters<br/>Amount Paid: N${Number(amount).toLocaleString()}`;
+            const receiptBase64 = await elementToPdfBase64(document.getElementById('tpl-receipt'));
+
+            // Populate Certificate
+            const ctIntro = document.getElementById('ct-intro');
+            ctIntro.textContent = `This is to certify that ${name} is recognized as the owner of the property described below:`;
+            const ctProp = document.getElementById('ct-prop');
+            ctProp.innerHTML = `Project: 2 Seasons<br/>Property Size: ${squareMeters} sq. meters<br/>Consideration Amount: N${Number(amount).toLocaleString()}<br/>Owner Contact: ${email} | ${phone}`;
+            const certBase64 = await elementToPdfBase64(document.getElementById('tpl-cert'));
+
+            // Populate Deed of Sale
+            const ddBody = document.getElementById('dd-body');
+            ddBody.innerHTML = `Assignor (Seller): Focal Point Property Development and Management Services Ltd.<br/>Assignee (Buyer): ${name}<br/>Property: 2 Seasons - ${squareMeters} sq. meters<br/>Consideration: N${Number(amount).toLocaleString()}<br/><br/>This Deed of Sale transfers and assigns all rights, title and interest in the property to the Buyer, subject to applicable laws and covenants.<br/><br/>Signed by: Tolulope Olugbode, Founder<br/>Date: ${new Date().toLocaleDateString()}`;
+            const deedBase64 = await elementToPdfBase64(document.getElementById('tpl-deed'));
+
+            return { receiptBase64, certBase64, deedBase64 };
+        }
+    </script>
 </body>
 </html>
 
