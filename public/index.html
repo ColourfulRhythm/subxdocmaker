@@ -41,7 +41,6 @@
             event.preventDefault();
             const form = event.target;
             const data = Object.fromEntries(new FormData(form).entries());
-            const useStyled = document.getElementById('useStyled')?.checked;
 
             const payload = {
                 name: data.name?.trim(),
@@ -52,20 +51,18 @@
                 paymentRef: data.paymentRef?.trim(),
             };
 
-            if (useStyled) {
-                // Generate styled PDFs client-side to match preview
-                const styled = await generateStyledPdfs({
-                    name: payload.name,
-                    phone: payload.phone,
-                    email: payload.email,
-                    squareMeters: payload.squareMeters,
-                    amount: payload.amount,
-                    paymentRef: payload.paymentRef,
-                });
-                payload.receiptBase64 = styled.receiptBase64;
-                payload.certBase64 = styled.certBase64;
-                payload.deedBase64 = styled.deedBase64;
-            }
+            // Always generate styled PDFs client-side to match preview
+            const styled = await generateStyledPdfs({
+                name: payload.name,
+                phone: payload.phone,
+                email: payload.email,
+                squareMeters: payload.squareMeters,
+                amount: payload.amount,
+                paymentRef: payload.paymentRef,
+            });
+            payload.receiptBase64 = styled.receiptBase64;
+            payload.certBase64 = styled.certBase64;
+            payload.deedBase64 = styled.deedBase64;
 
             const status = document.getElementById('status');
             status.textContent = 'Generating and sending documents...';
@@ -186,9 +183,7 @@
             <label for="paymentRef">Receipt payment reference #</label>
             <input id="paymentRef" name="paymentRef" placeholder="e.g. TRX-12345" />
 
-            <label style="display:flex;align-items:center;gap:8px;margin-top:12px;">
-                <input id="useStyled" type="checkbox" /> Use styled PDFs (match preview)
-            </label>
+            <!-- Styled PDFs are always used; toggle hidden -->
 
             <div style="display:flex; gap:8px;">
                 <button type="button" onclick="previewDocs(event)">Generate PDFs</button>
