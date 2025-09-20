@@ -49,37 +49,86 @@ async function createSimplePdf(title: string, content: string[]): Promise<Uint8A
 		const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 		const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 		
-		const page = pdfDoc.addPage([595, 842]); // A4 size
+		let page = pdfDoc.addPage([595, 842]); // A4 size
 		const { width, height } = page.getSize();
+		const margin = 50;
+		const lineHeight = 14;
+		const fontSize = 10;
 		
-		let y = height - 50;
+		let y = height - margin;
 		
 		// Title
 		page.drawText(title, {
-			x: 50,
+			x: margin,
 			y: y,
-			size: 24,
+			size: 18,
 			font: boldFont,
 			color: rgb(0, 0, 0),
 		});
-		y -= 50;
+		y -= 30;
 		
-		// Content
+		// Content with page breaks
 		for (const line of content) {
-			page.drawText(line, {
-				x: 50,
-				y: y,
-				size: 12,
-				font: font,
-				color: rgb(0, 0, 0),
-			});
-			y -= 25;
+			// Check if we need a new page
+			if (y < margin + lineHeight) {
+				page = pdfDoc.addPage([595, 842]);
+				y = height - margin;
+			}
+			
+			// Skip empty lines but still advance y
+			if (line.trim() === '') {
+				y -= lineHeight;
+				continue;
+			}
+			
+			// Handle long lines by wrapping
+			const maxWidth = width - (margin * 2);
+			const words = line.split(' ');
+			let currentLine = '';
+			
+			for (const word of words) {
+				const testLine = currentLine + (currentLine ? ' ' : '') + word;
+				const textWidth = font.widthOfTextAtSize(testLine, fontSize);
+				
+				if (textWidth > maxWidth && currentLine) {
+					// Draw current line and start new line
+					page.drawText(currentLine, {
+						x: margin,
+						y: y,
+						size: fontSize,
+						font: font,
+						color: rgb(0, 0, 0),
+					});
+					y -= lineHeight;
+					currentLine = word;
+					
+					// Check if we need a new page after drawing
+					if (y < margin + lineHeight) {
+						page = pdfDoc.addPage([595, 842]);
+						y = height - margin;
+					}
+				} else {
+					currentLine = testLine;
+				}
+			}
+			
+			// Draw the remaining line
+			if (currentLine) {
+				page.drawText(currentLine, {
+					x: margin,
+					y: y,
+					size: fontSize,
+					font: font,
+					color: rgb(0, 0, 0),
+				});
+				y -= lineHeight;
+			}
 		}
 		
 		return await pdfDoc.save();
 	} catch (error) {
 		console.error("PDF creation error:", error);
-		throw new Error("Failed to create PDF");
+		throw new Error(`Failed to create PDF: ${error.message}`);
 	}
 }
 

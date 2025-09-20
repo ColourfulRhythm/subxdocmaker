@@ -43,17 +43,20 @@ type PdfFooterOverrides = { website?: string; email?: string; includePhone?: boo
 
 async function createPdf(title: string, lines: string[], footerOverrides?: PdfFooterOverrides): Promise<Uint8Array> {
 	const pdfDoc = await PDFDocument.create();
-	const page = pdfDoc.addPage([595.28, 841.89]); // A4
+	let page = pdfDoc.addPage([595.28, 841.89]); // A4
 	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 	const { width, height } = page.getSize();
 	const margin = 50;
+	const lineHeight = 12;
+	const fontSize = 10;
 	let y = height - margin;
 
+	// Header
 	page.drawText(COMPANY.name, { x: margin, y, size: 18, font, color: rgb(0, 0, 0) });
 	y -= 22;
 	page.drawText(`${COMPANY.addressLine1}, ${COMPANY.addressLine2}`, { x: margin, y, size: 10, font });
 	y -= 14;
-	page.drawText(`${COMPANY.city}, ${COMPANY.state} ${COMPANY.postalCode}, ${COMPANY.country}`, { x: margin, y, size: 10, font });
+	page.drawText(`${COMPANY.city}, ${COMPANY.state}, ${COMPANY.country}`, { x: margin, y, size: 10, font });
 	y -= 14;
 	const includePhone = footerOverrides?.includePhone !== false;
 	if (includePhone) {
@@ -65,14 +68,69 @@ async function createPdf(title: string, lines: string[], footerOverrides?: PdfFo
 	page.drawText(`Website: ${footerOverrides?.website || COMPANY.website}`, { x: margin, y, size: 10, font });
 	y -= 24;
 
+	// Title
 	page.drawText(title, { x: margin, y, size: 16, font });
 	y -= 20;
 
+	// Content with page breaks
 	for (const line of lines) {
-		page.drawText(line, { x: margin, y, size: 12, font });
-		y -= 16;
+		// Check if we need a new page
+		if (y < margin + lineHeight) {
+			page = pdfDoc.addPage([595.28, 841.89]);
+			y = height - margin;
+		}
+		
+		// Skip empty lines but still advance y
+		if (line.trim() === '') {
+			y -= lineHeight;
+			continue;
+		}
+		
+		// Handle long lines by wrapping
+		const maxWidth = width - (margin * 2);
+		const words = line.split(' ');
+		let currentLine = '';
+		
+		for (const word of words) {
+			const testLine = currentLine + (currentLine ? ' ' : '') + word;
+			const textWidth = font.widthOfTextAtSize(testLine, fontSize);
+			
+			if (textWidth > maxWidth && currentLine) {
+				// Draw current line and start new line
+				page.drawText(currentLine, {
+					x: margin,
+					y: y,
+					size: fontSize,
+					font: font,
+					color: rgb(0, 0, 0),
+				});
+				y -= lineHeight;
+				currentLine = word;
+				
+				// Check if we need a new page after drawing
+				if (y < margin + lineHeight) {
+					page = pdfDoc.addPage([595.28, 841.89]);
+					y = height - margin;
+				}
+			} else {
+				currentLine = testLine;
+			}
+		}
+		
+		// Draw the remaining line
+		if (currentLine) {
+			page.drawText(currentLine, {
+				x: margin,
+				y: y,
+				size: fontSize,
+				font: font,
+				color: rgb(0, 0, 0),
+			});
+			y -= lineHeight;
+		}
 	}
 
+	// Footer on last page
 	y -= 20;
 	const footerWebsite = footerOverrides?.website || COMPANY.website;
 	const footerEmail = footerOverrides?.email || COMPANY.email;
