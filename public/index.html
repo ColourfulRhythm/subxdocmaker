@@ -259,13 +259,21 @@
             const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
             const url = URL.createObjectURL(svgBlob);
             const img = new Image();
-            const pdf = new jsPDF({ orientation:'p', unit:'pt', format:'a4' });
             await new Promise((resolve,reject)=>{ img.onload=resolve; img.onerror=reject; img.src=url; });
+            const pdf = new jsPDF({ orientation:'p', unit:'pt', format:'a4' });
             const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
             const ratio = img.width ? (pageWidth / img.width) : 1;
-            const h = img.height * ratio;
-            pdf.addImage(img, 'PNG', 0, 0, pageWidth, h, undefined, 'FAST');
+            const targetW = pageWidth;
+            const targetH = (img.height || targetW) * ratio;
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, Math.floor(targetW));
+            c.height = Math.max(1, Math.floor(targetH));
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0,0,c.width,c.height);
+            ctx.drawImage(img, 0, 0, c.width, c.height);
+            const jpegData = c.toDataURL('image/jpeg', 0.7);
+            pdf.addImage(jpegData, 'JPEG', 0, 0, targetW, targetH, undefined, 'FAST');
             URL.revokeObjectURL(url);
             return pdf.output('datauristring').split(',')[1];
         }
@@ -294,8 +302,9 @@
               `Date: ${new Date().toLocaleDateString()}`,
             ];
             for (const ln of lines){ deedPdf.text(ln, 50, y); y+=18; }
+            // Reduce payload: let server generate deed; omit deedBase64
             const deedBase64 = deedPdf.output('datauristring').split(',')[1];
-            return { receiptBase64, certBase64, deedBase64 };
+            return { receiptBase64, certBase64 };
         }
     </script>
 </body>
