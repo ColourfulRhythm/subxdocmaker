@@ -165,31 +165,31 @@ function base64ToBytes(base64: string): Uint8Array {
 }
 
 async function sendEmail({ to, name, attachments }: { to: string; name: string; attachments: { filename: string; content: string }[] }) {
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    const MAIL_FROM = Deno.env.get("MAIL_FROM") || "no-reply@example.com";
-    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
+	const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+	const MAIL_FROM = Deno.env.get("MAIL_FROM") || "no-reply@example.com";
+	if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
 
-    const subject = `${COMPANY.name} - Your Documents`;
+	const subject = `${COMPANY.name} - Your Documents`;
     const text = `Dear ${name},\n\nAttached are your receipt, certificate of ownership, and deed of sale.\n\nRegards,\n${COMPANY.name}`;
 
-    const resp = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${RESEND_API_KEY}`,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            from: MAIL_FROM,
-            to: to,
-            subject,
-            text,
+	const resp = await fetch("https://api.resend.com/emails", {
+		method: "POST",
+		headers: {
+			"Authorization": `Bearer ${RESEND_API_KEY}`,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			from: MAIL_FROM,
+			to: to,
+			subject,
+			text,
             attachments,
-        }),
-    });
-    if (!resp.ok) {
-        const body = await resp.text();
-        throw new Error(`Resend error ${resp.status}: ${body}`);
-    }
+		}),
+	});
+	if (!resp.ok) {
+		const body = await resp.text();
+		throw new Error(`Resend error ${resp.status}: ${body}`);
+	}
 }
 
 serve(async (req) => {
@@ -220,31 +220,31 @@ serve(async (req) => {
         
         if (!receiptPngBase64) {
             receiptBytes = await createPdf("Payment Receipt", [
-                `Date: ${new Date().toLocaleDateString()}`,
-                `Receipt #: ${Date.now()}`,
+			`Date: ${new Date().toLocaleDateString()}`,
+			`Receipt #: ${Date.now()}`,
                 `Payment Ref #: ${paymentRef || '-'}`,
-                `Received from: ${name}`,
-                `Phone: ${phone}`,
-                `Email: ${email}`,
-                `Property Size: ${squareMeters} sq. meters`,
+			`Received from: ${name}`,
+			`Phone: ${phone}`,
+			`Email: ${email}`,
+			`Property Size: ${squareMeters} sq. meters`,
                 `Amount Paid: N${Number(amount).toLocaleString()}`,
-                `Payment Method: Bank Transfer`,
-                `Bank: ${COMPANY.bank.name}`,
-                `Account Name: ${COMPANY.bank.accountName}`,
-                `Account Number: ${COMPANY.bank.accountNumber}`,
-                `Routing Number: ${COMPANY.bank.routingNumber}`,
+			`Payment Method: Bank Transfer`,
+			`Bank: ${COMPANY.bank.name}`,
+			`Account Name: ${COMPANY.bank.accountName}`,
+			`Account Number: ${COMPANY.bank.accountNumber}`,
+			`Routing Number: ${COMPANY.bank.routingNumber}`,
             ], { website: 'www.subxhq.com', email: 'subx@focalpointdev.com', includePhone: false });
         }
 
         if (!certPngBase64) {
             certBytes = await createPdf("Certificate of Ownership", [
-                `This certifies that ${name} is recognized as the owner of the property:`,
-                `Owner Name: ${name}`,
-                `Owner Email: ${email}`,
-                `Owner Phone: ${phone}`,
-                `Property Size: ${squareMeters} sq. meters`,
+			`This certifies that ${name} is recognized as the owner of the property:`,
+			`Owner Name: ${name}`,
+			`Owner Email: ${email}`,
+			`Owner Phone: ${phone}`,
+			`Property Size: ${squareMeters} sq. meters`,
                 `Consideration Amount: N${Number(amount).toLocaleString()}`,
-                `Issued on: ${new Date().toLocaleDateString()}`,
+			`Issued on: ${new Date().toLocaleDateString()}`,
             ], { website: 'www.subxhq.com', email: 'subx@focalpointdev.com', includePhone: false });
         }
 
@@ -270,8 +270,8 @@ serve(async (req) => {
             `RECITALS`,
             ``,
             `A. The Assignor is the registered owner/developer of a parcel of land known as`,
-            `Plot/Phase: ${plotReference}, situate at 2 Seasons, Off Kobape-Abeokuta Expressway,`,
-            `Gbako Village, Ogun State ("the Project" or "the Plot").`,
+            `2 Seasons, Off Kobape-Abeokuta Expressway, Gbako Village, Ogun State`,
+            `("the Project" or "the Plot").`,
             ``,
             `B. The Assignor has created a scheme of sub-ownership whereby the Assignor sells`,
             `individual square-metre units (each being "1 sqm") of the said Plot to purchasers,`,
@@ -286,111 +286,36 @@ serve(async (req) => {
             `NOW THIS DEED WITNESSES as follows:`,
             ``,
             `1. TRANSFER AND ASSIGNMENT`,
-            `   1.1 In consideration of the Purchase Price (receipt of which the Assignor hereby`,
+            `   In consideration of the Purchase Price (receipt of which the Assignor hereby`,
             `acknowledges), the Assignor hereby assigns, conveys and transfers to the Assignee`,
-            `all the Assignor's rights, title and interest in and to the Subject Units described`,
-            `as [DESCRIPTION / LOCATION WITHIN PLOT / SURVEY REFERENCE] and tied to Plot`,
-            `Reference ${plotReference}.`,
-            `   1.2 The Assignee shall be entitled to possess and enjoy the Subject Units as`,
-            `legal owner, subject to the terms, reservations and covenants contained in this Deed.`,
+            `all the Assignor's rights, title and interest in and to the Subject Units tied`,
+            `to the Project. The Assignee shall be entitled to possess and enjoy the Subject`,
+            `Units as legal owner, subject to the terms and covenants contained in this Deed.`,
             ``,
             `2. NATURE OF OWNERSHIP`,
-            `   2.1 The Assignee's ownership is a sub-ownership in square metres (sqm) and is`,
-            `specifically tied to the above-mentioned Plot/Plot Reference. The ownership is not`,
-            `a free-standing registered parcel separate from the Plot until such time as the`,
-            `Assignor (or relevant registry) effects any permissible consolidation/registration`,
-            `in accordance with applicable law and the terms of any internal scheme documents.`,
-            `   2.2 The Assignee acknowledges that the Subject Units form part of a larger`,
-            `development and accepts any common infrastructure, restrictions, covenants, and`,
-            `management arrangements that apply to the Project.`,
+            `   Ownership is by square metre (sqm) and is tied to the identified Plot. It is`,
+            `not a free-standing parcel separate from the Project until such time as the`,
+            `Assignor or relevant authority effects registration or consolidation.`,
             ``,
-            `3. WAIT/LOCK-IN PERIOD BEFORE RESALE`,
-            `   3.1 The Assignee covenants and agrees that the Subject Units shall not be offered`,
-            `for sale, assigned, transferred, charged, pledged, or otherwise disposed of in`,
-            `whole or in part for a period of twenty-four (24) calendar months (the "Wait Period")`,
-            `commencing from the Date of this Deed.`,
-            `   3.2 Notwithstanding Clause 3.1, the Assignor may, in its sole discretion and by`,
-            `express prior written consent, permit an earlier transfer. Any attempted sale,`,
-            `assignment or transfer in contravention of this Clause 3 shall be null and void`,
-            `and of no effect.`,
+            `3. WAIT/LOCK-IN PERIOD`,
+            `   The Assignee shall not sell, assign, transfer, or otherwise dispose of the`,
+            `Subject Units for a period of twenty-four (24) months from the date of this Deed,`,
+            `except with the prior written consent of the Assignor. Any attempted transfer`,
+            `contrary to this clause shall be null and void.`,
             ``,
-            `4. RESTRICTION ON DISPOSAL / EXPRESS PERMISSION`,
-            `   4.1 Following the expiry of the Wait Period, the Assignee shall still not sell,`,
-            `transfer, assign, charge or otherwise dispose of the Subject Units without the`,
-            `prior express written permission of:`,
-            `       (a) Focal Point Property Development and Management Services Ltd. (the Assignor); and`,
-            `       (b) any other co-owners or parties as may be expressly required under the`,
-            `Project's title documents, management rules, or any encumbrance registered`,
-            `against the Plot (collectively "Required Consent Parties").`,
-            `   4.2 The Required Consent Parties shall not unreasonably withhold consent where`,
-            `the Assignee is in full compliance with all Project rules, payments, and`,
-            `obligations; provided that the Assignor reserves a right of first refusal or`,
-            `first offer on resale consistent with the Assignor's internal resale policy,`,
-            `which the Assignee agrees to honour.`,
+            `4. RESTRICTIONS ON RESALE`,
+            `   After the Wait Period, no resale or transfer of the Subject Units may occur`,
+            `without the express written permission of the Assignor. The Assignor reserves a`,
+            `right of first refusal on any resale.`,
             ``,
-            `5. TITLE, WARRANTIES AND INDEMNITY`,
-            `   5.1 The Assignor warrants that it has, at the date of this Deed, good and`,
-            `marketable title to the Plot and the right to sell the Subject Units.`,
-            `   5.2 The Assignor makes no warranty as to future planning approvals, service`,
-            `connections, or infrastructure completion timelines, save where expressly provided`,
-            `in writing elsewhere.`,
-            `   5.3 The Assignee shall indemnify and keep indemnified the Assignor against all`,
-            `losses, claims, demands, fines or expenses arising from any breach of this Deed`,
-            `by the Assignee, including any attempted unauthorized transfer.`,
+            `5. TITLE AND WARRANTIES`,
+            `   The Assignor warrants that it has good title to the Plot and full power to`,
+            `sell the Subject Units. The Assignee accepts that the Units are subject to`,
+            `applicable laws, development covenants, and Project rules.`,
             ``,
-            `6. PAYMENT AND RECEIPT`,
-            `   6.1 The Assignee has paid or will pay the Purchase Price in accordance with the`,
-            `payment schedule agreed between the parties. Receipt of any payment shall be`,
-            `evidenced by a formal receipt signed by the Assignor.`,
-            `   6.2 Non-payment in accordance with the agreed schedule may result in forfeiture,`,
-            `penalties or cancellation in accordance with the Assignor's sales policy.`,
-            ``,
-            `7. REGISTRATION AND COSTS`,
-            `   7.1 The Assignee shall be responsible for any applicable registration, stamp`,
-            `duties, legal fees or other charges associated with registering or recording this`,
-            `Deed or any permitted transfer, unless otherwise agreed in writing.`,
-            `   7.2 Where the Assignor is required to effect administrative changes to title`,
-            `documentation on behalf of the Assignee, the Assignee shall reimburse the`,
-            `Assignor for reasonable costs incurred.`,
-            ``,
-            `8. DEFAULT AND REMEDIES`,
-            `   8.1 In the event of breach by the Assignee (including any attempt to transfer`,
-            `in contravention of Clause 3 or Clause 4), the Assignor may take such actions as`,
-            `may be permitted by law and this Deed, including cancellation of the sale,`,
-            `retention of payments as liquidated damages, or seeking injunctive relief.`,
-            `   8.2 The remedies provided in this Deed are cumulative and without prejudice to`,
-            `any other remedies available at law or in equity.`,
-            ``,
-            `9. NOTICES`,
-            `   9.1 Any notice required to be given under this Deed shall be in writing and`,
-            `shall be given by hand delivery, registered post or courier to the addresses`,
-            `stated above or to such other address as a party may notify in writing.`,
-            ``,
-            `10. ENTIRE AGREEMENT`,
-            `   10.1 This Deed constitutes the entire agreement between the parties with respect`,
-            `to the subject matter hereof and supersedes all prior negotiations,`,
-            `representations or agreements, whether written or oral.`,
-            ``,
-            `11. SEVERABILITY`,
-            `   11.1 If any provision of this Deed is held to be invalid, illegal, or`,
-            `unenforceable, the remaining provisions shall continue in full force and effect.`,
-            ``,
-            `12. GOVERNING LAW AND JURISDICTION`,
-            `   12.1 This Deed shall be governed by and construed in accordance with the laws`,
-            `of the Federal Republic of Nigeria. The parties submit to the exclusive`,
-            `jurisdiction of the courts of Ogun State, Nigeria, for the resolution of any`,
-            `disputes arising from this Deed.`,
-            ``,
-            `13. ASSIGNOR'S OBLIGATIONS`,
-            `   13.1 The Assignor shall ensure that the Subject Units remain tied to the`,
-            `identified Plot/Plot Reference and shall not execute or permit any encumbrance`,
-            `or disposition that would materially prejudice the Assignee's ownership without`,
-            `prior notice to the Assignee, except as required by law.`,
-            ``,
-            `14. MISCELLANEOUS`,
-            `   14.1 Headings are for convenience only and shall not affect interpretation.`,
-            `   14.2 Words importing the singular include the plural and vice versa where the`,
-            `context so requires.`,
+            `6. GOVERNING LAW`,
+            `   This Deed shall be governed by and construed in accordance with the laws of`,
+            `the Federal Republic of Nigeria, with jurisdiction in the courts of Ogun State.`,
             ``,
             `IN WITNESS WHEREOF the parties hereto have executed this Deed on the Date first`,
             `above written.`,
@@ -409,20 +334,6 @@ serve(async (req) => {
             `Signature: _____________________`,
             `Name: ${name}`,
             `Date: ${currentDate.toLocaleDateString()}`,
-            ``,
-            `WITNESSES:`,
-            `1. Name: ______________________ Signature: __________________ Date: ___________`,
-            `2. Name: ______________________ Signature: __________________ Date: ___________`,
-            ``,
-            `SCHEDULE A – DESCRIPTION OF SUBJECT UNITS`,
-            `- Plot Reference: ${plotReference}`,
-            `- Location: 2 Seasons, Off Kobape-Abeokuta Expressway, Gbako Village, Ogun State`,
-            `- Number of Square Metres Purchased: ${squareMeters} sqm`,
-            `- Unit Identification: [UNIT ID OR BLOCK REFERENCES]`,
-            ``,
-            `SCHEDULE B – PAYMENT SCHEDULE`,
-            `- Total Purchase Price: N${Number(amount).toLocaleString()}`,
-            `- Payment Terms: Paid in full`,
         ], { website: 'www.subxhq.com', email: 'subx@focalpointdev.com', includePhone: false });
 
 		const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -446,24 +357,24 @@ serve(async (req) => {
 
 		const folder = `${Date.now()}-${email.replaceAll(/[^a-zA-Z0-9._-]/g, "_")}`;
 		const receiptPath = `${folder}/receipt.pdf`;
-        const certPath = `${folder}/certificate.pdf`;
+		const certPath = `${folder}/certificate.pdf`;
         const deedPath = `${folder}/deed-of-sale.pdf`;
 
 		try {
 			// Only upload PDFs if they were generated
 			if (receiptBytes) {
-				const r1 = await supabase.storage.from(SUPABASE_BUCKET).upload(receiptPath, receiptBytes, {
-					contentType: "application/pdf",
-					upsert: true,
-				});
-				if (r1.error) throw new Error(`storage_upload_receipt: ${r1.error.message}`);
+			const r1 = await supabase.storage.from(SUPABASE_BUCKET).upload(receiptPath, receiptBytes, {
+				contentType: "application/pdf",
+				upsert: true,
+			});
+			if (r1.error) throw new Error(`storage_upload_receipt: ${r1.error.message}`);
 			}
             if (certBytes) {
-				const r2 = await supabase.storage.from(SUPABASE_BUCKET).upload(certPath, certBytes, {
-					contentType: "application/pdf",
-					upsert: true,
-				});
-				if (r2.error) throw new Error(`storage_upload_certificate: ${r2.error.message}`);
+			const r2 = await supabase.storage.from(SUPABASE_BUCKET).upload(certPath, certBytes, {
+				contentType: "application/pdf",
+				upsert: true,
+			});
+			if (r2.error) throw new Error(`storage_upload_certificate: ${r2.error.message}`);
 			}
             const r3 = await supabase.storage.from(SUPABASE_BUCKET).upload(deedPath, deedBytes, {
                 contentType: "application/pdf",
@@ -482,8 +393,8 @@ serve(async (req) => {
 				email,
 				square_meters: Number(squareMeters),
 				amount: Number(amount),
-                receipt_path: receiptPath,
-                certificate_path: certPath,
+				receipt_path: receiptPath,
+				certificate_path: certPath,
                 deed_path: deedPath,
 			});
 		} catch (e) {
