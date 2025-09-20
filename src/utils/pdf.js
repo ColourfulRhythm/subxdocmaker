@@ -36,7 +36,7 @@ function streamToBuffer(stream) {
 	});
 }
 
-async function generateReceiptPdf({ company, name, phone, email, squareMeters, amount }) {
+async function generateReceiptPdf({ company, name, phone, email, squareMeters, amount, paymentRef }) {
 	const doc = new PDFDocument({ size: 'A4', margin: 40 });
 	const stream = doc.pipe(require('stream').PassThrough());
 
@@ -69,6 +69,7 @@ async function generateReceiptPdf({ company, name, phone, email, squareMeters, a
 		.fillColor('#7f8c8d')
 		.text(`Receipt #: RCP-${Date.now()}`, { align: 'center' })
 		.text(`Date: ${new Date().toLocaleDateString()}`, { align: 'center' })
+		.text(`Payment Ref #: ${paymentRef || '-'}`, { align: 'center' })
 		.fillColor('black');
 
 	// Customer information section

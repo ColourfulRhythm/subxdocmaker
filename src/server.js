@@ -22,12 +22,12 @@ app.get('/health', (_req, res) => {
 
 app.post('/api/generate', async (req, res) => {
 	try {
-		const { name, phone, email, squareMeters, amount } = req.body;
+		const { name, phone, email, squareMeters, amount, paymentRef } = req.body;
 		if (!name || !phone || !email || !squareMeters || !amount) {
 			return res.status(400).json({ ok: false, error: 'Missing required fields' });
 		}
 
-		const receiptBuffer = await generateReceiptPdf({ company, name, phone, email, squareMeters, amount });
+		const receiptBuffer = await generateReceiptPdf({ company, name, phone, email, squareMeters, amount, paymentRef });
 		const certBuffer = await generateOwnershipCertificatePdf({ company, name, phone, email, squareMeters, amount });
 
 		await sendEmailWithAttachments({
@@ -49,12 +49,12 @@ app.post('/api/generate', async (req, res) => {
 
 app.post('/api/preview', async (req, res) => {
 	try {
-		const { name, phone, email, squareMeters, amount } = req.body;
+		const { name, phone, email, squareMeters, amount, paymentRef } = req.body;
 		if (!name || !phone || !email || !squareMeters || !amount) {
 			return res.status(400).json({ ok: false, error: 'Missing required fields' });
 		}
 
-		const receiptBuffer = await generateReceiptPdf({ company, name, phone, email, squareMeters, amount });
+		const receiptBuffer = await generateReceiptPdf({ company, name, phone, email, squareMeters, amount, paymentRef });
 		const certBuffer = await generateOwnershipCertificatePdf({ company, name, phone, email, squareMeters, amount });
 
 		return res.json({

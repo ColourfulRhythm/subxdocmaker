@@ -51,7 +51,7 @@
                 paymentRef: data.paymentRef?.trim(),
             };
 
-            // Always generate styled PDFs client-side to match preview
+            // Always generate styled documents client-side to match preview
             const styled = await generateStyledPdfs({
                 name: payload.name,
                 phone: payload.phone,
@@ -60,8 +60,8 @@
                 amount: payload.amount,
                 paymentRef: payload.paymentRef,
             });
-            payload.receiptBase64 = styled.receiptBase64;
-            payload.certBase64 = styled.certBase64;
+            payload.receiptPngBase64 = styled.receiptPngBase64;
+            payload.certPngBase64 = styled.certPngBase64;
             payload.deedBase64 = styled.deedBase64;
 
             const status = document.getElementById('status');
@@ -254,35 +254,28 @@
 </svg>`;
         }
 
-        async function svgToPdfBase64(svg){
-            const { jsPDF } = window.jspdf;
+        async function svgToPngBase64(svg){
             const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
             const url = URL.createObjectURL(svgBlob);
             const img = new Image();
             await new Promise((resolve,reject)=>{ img.onload=resolve; img.onerror=reject; img.src=url; });
-            const pdf = new jsPDF({ orientation:'p', unit:'pt', format:'a4' });
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const ratio = img.width ? (pageWidth / img.width) : 1;
-            const targetW = pageWidth;
-            const targetH = (img.height || targetW) * ratio;
             const c = document.createElement('canvas');
-            c.width = Math.max(1, Math.floor(targetW));
-            c.height = Math.max(1, Math.floor(targetH));
+            c.width = img.width || 800;
+            c.height = img.height || 600;
             const ctx = c.getContext('2d');
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0,0,c.width,c.height);
             ctx.drawImage(img, 0, 0, c.width, c.height);
-            const jpegData = c.toDataURL('image/jpeg', 0.7);
-            pdf.addImage(jpegData, 'JPEG', 0, 0, targetW, targetH, undefined, 'FAST');
+            const pngData = c.toDataURL('image/png', 0.9);
             URL.revokeObjectURL(url);
-            return pdf.output('datauristring').split(',')[1];
+            return pngData.split(',')[1];
         }
 
         async function generateStyledPdfs({ name, phone, email, squareMeters, amount, paymentRef }) {
             const receiptSvg = buildReceiptSvg({ name, phone, email, squareMeters, amount, paymentRef });
             const certSvg = buildCertSvg({ name, phone, email, squareMeters, amount });
-            const receiptBase64 = await svgToPdfBase64(receiptSvg);
-            const certBase64 = await svgToPdfBase64(certSvg);
+            const receiptPngBase64 = await svgToPngBase64(receiptSvg);
+            const certPngBase64 = await svgToPngBase64(certSvg);
             // Deed PDF (simple text layout)
             const { jsPDF } = window.jspdf;
             const deedPdf = new jsPDF({ orientation:'p', unit:'pt', format:'a4' });
@@ -302,9 +295,8 @@
               `Date: ${new Date().toLocaleDateString()}`,
             ];
             for (const ln of lines){ deedPdf.text(ln, 50, y); y+=18; }
-            // Reduce payload: let server generate deed; omit deedBase64
             const deedBase64 = deedPdf.output('datauristring').split(',')[1];
-            return { receiptBase64, certBase64 };
+            return { receiptPngBase64, certPngBase64, deedBase64 };
         }
     </script>
 </body>

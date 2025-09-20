@@ -156,31 +156,39 @@ serve(async (req) => {
 			return new Response(JSON.stringify({ ok: false, error: "Missing required fields" }), { status: 400, headers: { "Content-Type": "application/json" } });
 		}
 
-        const receiptBytes = await createPdf("Payment Receipt", [
-			`Date: ${new Date().toLocaleDateString()}`,
-			`Receipt #: ${Date.now()}`,
-			`Payment Ref #: ${paymentRef || '-'}`,
-			`Received from: ${name}`,
-			`Phone: ${phone}`,
-			`Email: ${email}`,
-			`Property Size: ${squareMeters} sq. meters`,
-			`Amount Paid: N${Number(amount).toLocaleString()}`,
-			`Payment Method: Bank Transfer`,
-			`Bank: ${COMPANY.bank.name}`,
-			`Account Name: ${COMPANY.bank.accountName}`,
-			`Account Number: ${COMPANY.bank.accountNumber}`,
-			`Routing Number: ${COMPANY.bank.routingNumber}`,
-        ], { website: 'www.subxhq.com', email: 'subx@focalpointdev.com', includePhone: false });
+        // Only generate PDFs if PNGs are not provided
+        let receiptBytes: Uint8Array | null = null;
+        let certBytes: Uint8Array | null = null;
+        
+        if (!receiptPngBase64) {
+            receiptBytes = await createPdf("Payment Receipt", [
+                `Date: ${new Date().toLocaleDateString()}`,
+                `Receipt #: ${Date.now()}`,
+                `Payment Ref #: ${paymentRef || '-'}`,
+                `Received from: ${name}`,
+                `Phone: ${phone}`,
+                `Email: ${email}`,
+                `Property Size: ${squareMeters} sq. meters`,
+                `Amount Paid: N${Number(amount).toLocaleString()}`,
+                `Payment Method: Bank Transfer`,
+                `Bank: ${COMPANY.bank.name}`,
+                `Account Name: ${COMPANY.bank.accountName}`,
+                `Account Number: ${COMPANY.bank.accountNumber}`,
+                `Routing Number: ${COMPANY.bank.routingNumber}`,
+            ], { website: 'www.subxhq.com', email: 'subx@focalpointdev.com', includePhone: false });
+        }
 
-        const certBytes = await createPdf("Certificate of Ownership", [
-			`This certifies that ${name} is recognized as the owner of the property:`,
-			`Owner Name: ${name}`,
-			`Owner Email: ${email}`,
-			`Owner Phone: ${phone}`,
-			`Property Size: ${squareMeters} sq. meters`,
-			`Consideration Amount: N${Number(amount).toLocaleString()}`,
-			`Issued on: ${new Date().toLocaleDateString()}`,
-        ], { website: 'www.subxhq.com', email: 'subx@focalpointdev.com', includePhone: false });
+        if (!certPngBase64) {
+            certBytes = await createPdf("Certificate of Ownership", [
+                `This certifies that ${name} is recognized as the owner of the property:`,
+                `Owner Name: ${name}`,
+                `Owner Email: ${email}`,
+                `Owner Phone: ${phone}`,
+                `Property Size: ${squareMeters} sq. meters`,
+                `Consideration Amount: N${Number(amount).toLocaleString()}`,
+                `Issued on: ${new Date().toLocaleDateString()}`,
+            ], { website: 'www.subxhq.com', email: 'subx@focalpointdev.com', includePhone: false });
+        }
 
         const deedBytes = await createPdf("Deed of Sale", [
             `Assignor (Seller): ${COMPANY.name}`,
@@ -221,16 +229,21 @@ serve(async (req) => {
         const deedPath = `${folder}/deed-of-sale.pdf`;
 
 		try {
-			const r1 = await supabase.storage.from(SUPABASE_BUCKET).upload(receiptPath, receiptBytes, {
-				contentType: "application/pdf",
-				upsert: true,
-			});
-			if (r1.error) throw new Error(`storage_upload_receipt: ${r1.error.message}`);
-            const r2 = await supabase.storage.from(SUPABASE_BUCKET).upload(certPath, certBytes, {
-				contentType: "application/pdf",
-				upsert: true,
-			});
-			if (r2.error) throw new Error(`storage_upload_certificate: ${r2.error.message}`);
+			// Only upload PDFs if they were generated
+			if (receiptBytes) {
+				const r1 = await supabase.storage.from(SUPABASE_BUCKET).upload(receiptPath, receiptBytes, {
+					contentType: "application/pdf",
+					upsert: true,
+				});
+				if (r1.error) throw new Error(`storage_upload_receipt: ${r1.error.message}`);
+			}
+            if (certBytes) {
+				const r2 = await supabase.storage.from(SUPABASE_BUCKET).upload(certPath, certBytes, {
+					contentType: "application/pdf",
+					upsert: true,
+				});
+				if (r2.error) throw new Error(`storage_upload_certificate: ${r2.error.message}`);
+			}
             const r3 = await supabase.storage.from(SUPABASE_BUCKET).upload(deedPath, deedBytes, {
                 contentType: "application/pdf",
                 upsert: true,
@@ -258,10 +271,16 @@ serve(async (req) => {
 
 		// Email attachments as base64 via Resend
 		const attachments: { filename: string; content: string }[] = [];
-		if (receiptPngBase64) attachments.push({ filename: 'receipt.png', content: receiptPngBase64 });
-		else attachments.push({ filename: 'receipt.pdf', content: bytesToBase64(receiptBytes) });
-		if (certPngBase64) attachments.push({ filename: 'certificate.png', content: certPngBase64 });
-		else attachments.push({ filename: 'certificate.pdf', content: bytesToBase64(certBytes) });
+		if (receiptPngBase64) {
+			attachments.push({ filename: 'receipt.png', content: receiptPngBase64 });
+		} else if (receiptBytes) {
+			attachments.push({ filename: 'receipt.pdf', content: bytesToBase64(receiptBytes) });
+		}
+		if (certPngBase64) {
+			attachments.push({ filename: 'certificate.png', content: certPngBase64 });
+		} else if (certBytes) {
+			attachments.push({ filename: 'certificate.pdf', content: bytesToBase64(certBytes) });
+		}
 		attachments.push({ filename: 'deed-of-sale.pdf', content: bytesToBase64(deedBytes) });
 		try {
 			await sendEmail({ to: email, name, attachments });
