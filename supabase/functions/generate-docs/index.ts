@@ -281,7 +281,7 @@ serve(async (req) => {
             `agreed to sell to the Assignee a total of ${squareMeters} square metres`,
             `(hereinafter referred to as the "Subject Units" or "the Units") of the Plot,`,
             `being part of the said Plot, for the sum of ${Number(amount).toLocaleString()} Naira`,
-            `(₦${Number(amount).toLocaleString()}) (the "Purchase Price").`,
+            `(N${Number(amount).toLocaleString()}) (the "Purchase Price").`,
             ``,
             `NOW THIS DEED WITNESSES as follows:`,
             ``,
@@ -421,7 +421,7 @@ serve(async (req) => {
             `- Unit Identification: [UNIT ID OR BLOCK REFERENCES]`,
             ``,
             `SCHEDULE B – PAYMENT SCHEDULE`,
-            `- Total Purchase Price: ₦${Number(amount).toLocaleString()}`,
+            `- Total Purchase Price: N${Number(amount).toLocaleString()}`,
             `- Payment Terms: Paid in full`,
         ], { website: 'www.subxhq.com', email: 'subx@focalpointdev.com', includePhone: false });
 
