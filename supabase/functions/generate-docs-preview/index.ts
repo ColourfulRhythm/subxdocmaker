@@ -341,7 +341,7 @@ serve(async (req) => {
 			`and having its registered office at 2 Seasons, Off Kobape-Abeokuta Expressway,`,
 			`Gbako Village, Ogun State (hereinafter referred to as the "Assignor" or "FOCAL POINT"); and`,
 			``,
-			`(2) ${name.toUpperCase()}, of [Assignee Address] (hereinafter referred to as the "Assignee").`,
+			`(2) ${name.toUpperCase()} (hereinafter referred to as the "Assignee").`,
 			``,
 			`RECITALS`,
 			``,

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate Icons</title>
+</head>
+<body>
+    <canvas id="canvas192" width="192" height="192"></canvas>
+    <canvas id="canvas512" width="512" height="512"></canvas>
+    <script>
+        function generateIcon(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Background
+            ctx.fillStyle = '#007bff';
+            ctx.fillRect(0, 0, size, size);
+            
+            // White rounded rectangle
+            const margin = size * 0.125;
+            const rectSize = size - (margin * 2);
+            ctx.fillStyle = 'white';
+            ctx.roundRect(margin, margin, rectSize, rectSize, size * 0.0625);
+            ctx.fill();
+            
+            // Document lines
+            ctx.fillStyle = '#007bff';
+            const lineHeight = size * 0.078;
+            const lineSpacing = size * 0.125;
+            const startY = margin + lineSpacing;
+            
+            for (let i = 0; i < 5; i++) {
+                const y = startY + (i * lineSpacing);
+                const width = rectSize * (0.6 + Math.random() * 0.3);
+                const x = margin + (rectSize - width) / 2;
+                ctx.fillRect(x, y, width, lineHeight);
+            }
+            
+            // "DOC" text
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size * 0.125}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('DOC', size / 2, size * 0.9);
+            
+            // Download
+            const link = document.createElement('a');
+            link.download = `icon-${size}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        // Add roundRect method if not available
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
+                this.beginPath();
+                this.moveTo(x + radius, y);
+                this.lineTo(x + width - radius, y);
+                this.quadraticCurveTo(x + width, y, x + width, y + radius);
+                this.lineTo(x + width, y + height - radius);
+                this.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                this.lineTo(x + radius, y + height);
+                this.quadraticCurveTo(x, y + height, x, y + height - radius);
+                this.lineTo(x, y + radius);
+                this.quadraticCurveTo(x, y, x + radius, y);
+                this.closePath();
+            };
+        }
+        
+        // Generate icons when page loads
+        window.onload = function() {
+            generateIcon('canvas192', 192);
+            generateIcon('canvas512', 512);
+        };
+    </script>
+</body>
+</html>

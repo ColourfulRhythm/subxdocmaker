@@ -1,0 +1,10 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#007bff" rx="64"/>
+  <rect x="64" y="64" width="384" height="384" fill="white" rx="32"/>
+  <rect x="96" y="96" width="320" height="40" fill="#007bff" rx="8"/>
+  <rect x="96" y="160" width="240" height="40" fill="#007bff" rx="8"/>
+  <rect x="96" y="224" width="280" height="40" fill="#007bff" rx="8"/>
+  <rect x="96" y="288" width="200" height="40" fill="#007bff" rx="8"/>
+  <rect x="96" y="352" width="320" height="40" fill="#007bff" rx="8"/>
+  <text x="256" y="450" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="white" text-anchor="middle">DOC</text>
+</svg>
