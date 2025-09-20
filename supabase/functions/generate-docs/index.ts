@@ -13,6 +13,10 @@ type Payload = {
 	email: string;
 	squareMeters: string | number;
 	amount: string | number;
+	paymentRef?: string;
+	// Optional pre-rendered client assets
+	receiptPngBase64?: string;
+	certPngBase64?: string;
 };
 
 const COMPANY = {
@@ -35,7 +39,9 @@ const COMPANY = {
 	},
 };
 
-async function createPdf(title: string, lines: string[]): Promise<Uint8Array> {
+type PdfFooterOverrides = { website?: string; email?: string; includePhone?: boolean };
+
+async function createPdf(title: string, lines: string[], footerOverrides?: PdfFooterOverrides): Promise<Uint8Array> {
 	const pdfDoc = await PDFDocument.create();
 	const page = pdfDoc.addPage([595.28, 841.89]); // A4
 	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -49,9 +55,14 @@ async function createPdf(title: string, lines: string[]): Promise<Uint8Array> {
 	y -= 14;
 	page.drawText(`${COMPANY.city}, ${COMPANY.state} ${COMPANY.postalCode}, ${COMPANY.country}`, { x: margin, y, size: 10, font });
 	y -= 14;
-	page.drawText(`Phone: ${COMPANY.phone}  Email: ${COMPANY.email}`, { x: margin, y, size: 10, font });
+	const includePhone = footerOverrides?.includePhone !== false;
+	if (includePhone) {
+		page.drawText(`Phone: ${COMPANY.phone}  Email: ${footerOverrides?.email || COMPANY.email}`, { x: margin, y, size: 10, font });
+	} else {
+		page.drawText(`Email: ${footerOverrides?.email || COMPANY.email}`, { x: margin, y, size: 10, font });
+	}
 	y -= 14;
-	page.drawText(`Website: ${COMPANY.website}`, { x: margin, y, size: 10, font });
+	page.drawText(`Website: ${footerOverrides?.website || COMPANY.website}`, { x: margin, y, size: 10, font });
 	y -= 24;
 
 	page.drawText(title, { x: margin, y, size: 16, font });
@@ -63,7 +74,12 @@ async function createPdf(title: string, lines: string[]): Promise<Uint8Array> {
 	}
 
 	y -= 20;
-	page.drawText(`${COMPANY.name} | ${COMPANY.website} | ${COMPANY.email} | ${COMPANY.phone}`,
+	const footerWebsite = footerOverrides?.website || COMPANY.website;
+	const footerEmail = footerOverrides?.email || COMPANY.email;
+	const footerLine = includePhone
+		? `${COMPANY.name} | ${footerWebsite} | ${footerEmail} | ${COMPANY.phone}`
+		: `${COMPANY.name} | ${footerWebsite} | ${footerEmail}`;
+	page.drawText(footerLine,
 		{ x: margin, y, size: 9, font, color: rgb(0.3, 0.3, 0.3) });
 
 	const bytes = await pdfDoc.save();
@@ -81,35 +97,41 @@ function bytesToBase64(bytes: Uint8Array): string {
 	return btoa(binary);
 }
 
-async function sendEmail({ to, name, receiptBase64, certBase64 }: { to: string; name: string; receiptBase64: string; certBase64: string; }) {
-	const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-	const MAIL_FROM = Deno.env.get("MAIL_FROM") || "no-reply@example.com";
-	if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
+function base64ToBytes(base64: string): Uint8Array {
+	// deno-lint-ignore no-deprecated-deno-api
+	const binary = atob(base64);
+	const len = binary.length;
+	const bytes = new Uint8Array(len);
+	for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+	return bytes;
+}
 
-	const subject = `${COMPANY.name} - Your Documents`;
-	const text = `Dear ${name},\n\nAttached are your receipt and certificate of ownership.\n\nRegards,\n${COMPANY.name}`;
+async function sendEmail({ to, name, attachments }: { to: string; name: string; attachments: { filename: string; content: string }[] }) {
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    const MAIL_FROM = Deno.env.get("MAIL_FROM") || "no-reply@example.com";
+    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
 
-	const resp = await fetch("https://api.resend.com/emails", {
-		method: "POST",
-		headers: {
-			"Authorization": `Bearer ${RESEND_API_KEY}`,
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({
-			from: MAIL_FROM,
-			to: to,
-			subject,
-			text,
-			attachments: [
-				{ filename: "receipt.pdf", content: receiptBase64 },
-				{ filename: "certificate.pdf", content: certBase64 },
-			],
-		}),
-	});
-	if (!resp.ok) {
-		const body = await resp.text();
-		throw new Error(`Resend error ${resp.status}: ${body}`);
-	}
+    const subject = `${COMPANY.name} - Your Documents`;
+    const text = `Dear ${name},\n\nAttached are your receipt, certificate of ownership, and deed of sale.\n\nRegards,\n${COMPANY.name}`;
+
+    const resp = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            from: MAIL_FROM,
+            to: to,
+            subject,
+            text,
+            attachments,
+        }),
+    });
+    if (!resp.ok) {
+        const body = await resp.text();
+        throw new Error(`Resend error ${resp.status}: ${body}`);
+    }
 }
 
 serve(async (req) => {
@@ -129,35 +151,50 @@ serve(async (req) => {
 			return new Response(JSON.stringify({ ok: false, error: "Method not allowed" }), { status: 405, headers: { "Content-Type": "application/json" } });
 		}
 		const payload = (await req.json()) as Payload;
-		const { name, phone, email, squareMeters, amount } = payload;
+		const { name, phone, email, squareMeters, amount, paymentRef, receiptPngBase64, certPngBase64 } = payload;
 		if (!name || !phone || !email || !squareMeters || !amount) {
 			return new Response(JSON.stringify({ ok: false, error: "Missing required fields" }), { status: 400, headers: { "Content-Type": "application/json" } });
 		}
 
-		const receiptBytes = await createPdf("Payment Receipt", [
+        const receiptBytes = await createPdf("Payment Receipt", [
 			`Date: ${new Date().toLocaleDateString()}`,
 			`Receipt #: ${Date.now()}`,
+			`Payment Ref #: ${paymentRef || '-'}`,
 			`Received from: ${name}`,
 			`Phone: ${phone}`,
 			`Email: ${email}`,
 			`Property Size: ${squareMeters} sq. meters`,
-			`Amount Paid: ₦${Number(amount).toLocaleString()}`,
+			`Amount Paid: N${Number(amount).toLocaleString()}`,
 			`Payment Method: Bank Transfer`,
 			`Bank: ${COMPANY.bank.name}`,
 			`Account Name: ${COMPANY.bank.accountName}`,
 			`Account Number: ${COMPANY.bank.accountNumber}`,
 			`Routing Number: ${COMPANY.bank.routingNumber}`,
-		]);
+        ], { website: 'www.subxhq.com', email: 'subx@focalpointdev.com', includePhone: false });
 
-		const certBytes = await createPdf("Certificate of Ownership", [
+        const certBytes = await createPdf("Certificate of Ownership", [
 			`This certifies that ${name} is recognized as the owner of the property:`,
 			`Owner Name: ${name}`,
 			`Owner Email: ${email}`,
 			`Owner Phone: ${phone}`,
 			`Property Size: ${squareMeters} sq. meters`,
-			`Consideration Amount: ₦${Number(amount).toLocaleString()}`,
+			`Consideration Amount: N${Number(amount).toLocaleString()}`,
 			`Issued on: ${new Date().toLocaleDateString()}`,
-		]);
+        ], { website: 'www.subxhq.com', email: 'subx@focalpointdev.com', includePhone: false });
+
+        const deedBytes = await createPdf("Deed of Sale", [
+            `Assignor (Seller): ${COMPANY.name}`,
+            `Assignee (Buyer): ${name}`,
+            `Property: ${COMPANY.projectName} - ${squareMeters} sq. meters`,
+            `Consideration: N${Number(amount).toLocaleString()}`,
+            `Location: ${COMPANY.addressLine1}, ${COMPANY.addressLine2}, ${COMPANY.city}, ${COMPANY.state}`,
+            ``,
+            `This Deed of Sale transfers and assigns all rights, title and interest`,
+            `in the property to the Buyer, subject to applicable laws and covenants.`,
+            ``,
+            `Signed by: ${COMPANY.ceoName}, ${COMPANY.ceoTitle}`,
+            `Date: ${new Date().toLocaleDateString()}`,
+        ], { website: 'www.subxhq.com', email: 'subx@focalpointdev.com', includePhone: false });
 
 		const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 		const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -180,7 +217,8 @@ serve(async (req) => {
 
 		const folder = `${Date.now()}-${email.replaceAll(/[^a-zA-Z0-9._-]/g, "_")}`;
 		const receiptPath = `${folder}/receipt.pdf`;
-		const certPath = `${folder}/certificate.pdf`;
+        const certPath = `${folder}/certificate.pdf`;
+        const deedPath = `${folder}/deed-of-sale.pdf`;
 
 		try {
 			const r1 = await supabase.storage.from(SUPABASE_BUCKET).upload(receiptPath, receiptBytes, {
@@ -188,11 +226,16 @@ serve(async (req) => {
 				upsert: true,
 			});
 			if (r1.error) throw new Error(`storage_upload_receipt: ${r1.error.message}`);
-			const r2 = await supabase.storage.from(SUPABASE_BUCKET).upload(certPath, certBytes, {
+            const r2 = await supabase.storage.from(SUPABASE_BUCKET).upload(certPath, certBytes, {
 				contentType: "application/pdf",
 				upsert: true,
 			});
 			if (r2.error) throw new Error(`storage_upload_certificate: ${r2.error.message}`);
+            const r3 = await supabase.storage.from(SUPABASE_BUCKET).upload(deedPath, deedBytes, {
+                contentType: "application/pdf",
+                upsert: true,
+            });
+            if (r3.error) throw new Error(`storage_upload_deed: ${r3.error.message}`);
 		} catch (e) {
 			throw new Error(`storage: ${String((e as Error).message || e)}`);
 		}
@@ -205,18 +248,23 @@ serve(async (req) => {
 				email,
 				square_meters: Number(squareMeters),
 				amount: Number(amount),
-				receipt_path: receiptPath,
-				certificate_path: certPath,
+                receipt_path: receiptPath,
+                certificate_path: certPath,
+                deed_path: deedPath,
 			});
 		} catch (e) {
 			console.log('db insert error:', e);
 		}
 
 		// Email attachments as base64 via Resend
-		const receiptBase64 = bytesToBase64(receiptBytes);
-		const certBase64 = bytesToBase64(certBytes);
+		const attachments: { filename: string; content: string }[] = [];
+		if (receiptPngBase64) attachments.push({ filename: 'receipt.png', content: receiptPngBase64 });
+		else attachments.push({ filename: 'receipt.pdf', content: bytesToBase64(receiptBytes) });
+		if (certPngBase64) attachments.push({ filename: 'certificate.png', content: certPngBase64 });
+		else attachments.push({ filename: 'certificate.pdf', content: bytesToBase64(certBytes) });
+		attachments.push({ filename: 'deed-of-sale.pdf', content: bytesToBase64(deedBytes) });
 		try {
-			await sendEmail({ to: email, name, receiptBase64, certBase64 });
+			await sendEmail({ to: email, name, attachments });
 		} catch (e) {
 			throw new Error(`email: ${String((e as Error).message || e)}`);
 		}
