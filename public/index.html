@@ -4,6 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Document Generator</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Generate property documents - receipts, certificates, and deeds of sale" />
+    <meta name="theme-color" content="#007bff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Document Generator" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .container { max-width: 600px; margin: 0 auto; }
@@ -16,6 +25,35 @@
         .frames { display: grid; grid-template-columns: 1fr; gap: 12px; }
         @media (min-width: 900px) { .frames { grid-template-columns: 1fr 1fr; } }
         .frames iframe { width: 100%; height: 65vh; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; }
+        
+        /* PWA Install Button Styles */
+        .install-prompt { 
+            display: none; 
+            background: #007bff; 
+            color: white; 
+            padding: 12px 20px; 
+            border-radius: 6px; 
+            margin-bottom: 20px; 
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .install-prompt:hover { background: #0056b3; }
+        .install-prompt:active { background: #004085; }
+        
+        .install-prompt.show { display: block; }
+        
+        .pwa-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #6c757d;
+        }
     </style>
     <script>
         // Auto-select backend: Supabase on hosted, Node on localhost
@@ -28,6 +66,61 @@
             window.API_GENERATE_URL = 'https://kdisvxgqqskpxgxzbbet.functions.supabase.co/generate-docs';
             window.API_PREVIEW_URL  = 'https://kdisvxgqqskpxgxzbbet.functions.supabase.co/generate-docs-preview';
             window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtkaXN2eGdxcXNrcHhneHpiYmV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyOTUwMTMsImV4cCI6MjA3Mzg3MTAxM30.LZgSUHWQgAzYREA4IZF7h1DAPdL4JBRgn0U-T6o7LFE';
+        }
+        
+        // PWA Install Handler
+        let deferredPrompt;
+        const installButton = document.getElementById('installButton');
+        
+        // Listen for the beforeinstallprompt event
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            deferredPrompt = e;
+            // Show the install button
+            installButton.classList.add('show');
+        });
+        
+        // Handle install button click
+        installButton.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                // Show the install prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to the install prompt: ${outcome}`);
+                // Clear the deferredPrompt so it can only be used once
+                deferredPrompt = null;
+                // Hide the install button
+                installButton.classList.remove('show');
+            }
+        });
+        
+        // Listen for the appinstalled event
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA was installed');
+            // Hide the install button after successful installation
+            installButton.classList.remove('show');
+        });
+        
+        // Check if app is already installed (standalone mode)
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            // App is running in standalone mode
+            installButton.classList.remove('show');
+        }
+        
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -164,6 +257,18 @@
 <body>
     <div class="container">
         <h1>Generate Documents</h1>
+        
+        <!-- PWA Install Button -->
+        <button id="installButton" class="install-prompt">
+            📱 Install App
+        </button>
+        
+        <!-- PWA Info -->
+        <div class="pwa-info">
+            <strong>📱 Mobile App:</strong> Install this app on your mobile device for easy access. 
+            <strong>Note:</strong> PWA requires HTTPS - ensure you're using the secure version of this site.
+        </div>
+        
         <form onsubmit="submitForm(event)">
             <label for="name">Name</label>
             <input id="name" name="name" required />
