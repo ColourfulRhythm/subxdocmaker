@@ -8,11 +8,14 @@
     <!-- PWA Meta Tags -->
     <meta name="description" content="Generate property documents - receipts, certificates, and deeds of sale" />
     <meta name="theme-color" content="#007bff" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Document Generator" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icon-192.png" />
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .container { max-width: 600px; margin: 0 auto; }
@@ -70,7 +73,29 @@
         
         // PWA Install Handler
         let deferredPrompt;
-        const installButton = document.getElementById('installButton');
+        let installButton;
+        
+        // Wait for DOM to be loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            installButton = document.getElementById('installButton');
+            
+            // Handle install button click
+            if (installButton) {
+                installButton.addEventListener('click', async () => {
+                    if (deferredPrompt) {
+                        // Show the install prompt
+                        deferredPrompt.prompt();
+                        // Wait for the user to respond to the prompt
+                        const { outcome } = await deferredPrompt.userChoice;
+                        console.log(`User response to the install prompt: ${outcome}`);
+                        // Clear the deferredPrompt so it can only be used once
+                        deferredPrompt = null;
+                        // Hide the install button
+                        installButton.classList.remove('show');
+                    }
+                });
+            }
+        });
         
         // Listen for the beforeinstallprompt event
         window.addEventListener('beforeinstallprompt', (e) => {
@@ -78,22 +103,9 @@
             e.preventDefault();
             // Stash the event so it can be triggered later
             deferredPrompt = e;
-            // Show the install button
-            installButton.classList.add('show');
-        });
-        
-        // Handle install button click
-        installButton.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                // Show the install prompt
-                deferredPrompt.prompt();
-                // Wait for the user to respond to the prompt
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response to the install prompt: ${outcome}`);
-                // Clear the deferredPrompt so it can only be used once
-                deferredPrompt = null;
-                // Hide the install button
-                installButton.classList.remove('show');
+            // Show the install button if it exists
+            if (installButton) {
+                installButton.classList.add('show');
             }
         });
         
