@@ -95,18 +95,18 @@
                     }
                 });
             }
-        });
-        
-        // Listen for the beforeinstallprompt event
-        window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent the mini-infobar from appearing on mobile
-            e.preventDefault();
-            // Stash the event so it can be triggered later
-            deferredPrompt = e;
-            // Show the install button if it exists
-            if (installButton) {
-                installButton.classList.add('show');
-            }
+            
+            // Listen for the beforeinstallprompt event (moved inside DOMContentLoaded)
+            window.addEventListener('beforeinstallprompt', (e) => {
+                // Prevent the mini-infobar from appearing on mobile
+                e.preventDefault();
+                // Stash the event so it can be triggered later
+                deferredPrompt = e;
+                // Show the install button if it exists
+                if (installButton) {
+                    installButton.classList.add('show');
+                }
+            });
         });
         
         // Listen for the appinstalled event
