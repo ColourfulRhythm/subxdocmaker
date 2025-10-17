@@ -30,6 +30,10 @@ const API_KEY = process.env.API_KEY || 'your-secret-api-key-here';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const MAIL_FROM = process.env.MAIL_FROM || 'subx@subxhq.com';
 
+// Supabase configuration for storing PDFs
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://kdisvxgqqskpxgxzbbet.supabase.co';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY; // Service role key, not anon key
+
 function streamToBuffer(stream) {
 	return new Promise((resolve, reject) => {
 		const chunks = [];
@@ -304,6 +308,74 @@ async function generateDeedPdf({ name, squareMeters, amount }) {
 	return await streamToBuffer(stream);
 }
 
+async function uploadToSupabase({ email, name, receiptPdf, certificatePdf, deedPdf, squareMeters, amount, paymentRef }) {
+	if (!SUPABASE_SERVICE_KEY) {
+		console.warn('SUPABASE_SERVICE_KEY not set, skipping storage upload');
+		return null;
+	}
+
+	try {
+		const timestamp = Date.now();
+		const safeEmail = email.replace(/[^a-zA-Z0-9._-]/g, '_');
+		const folder = `${timestamp}-${safeEmail}`;
+
+		// Upload files to Supabase Storage
+		const uploads = [
+			{ path: `${folder}/receipt.pdf`, file: receiptPdf, contentType: 'application/pdf' },
+			{ path: `${folder}/certificate.pdf`, file: certificatePdf, contentType: 'application/pdf' },
+			{ path: `${folder}/deed-of-sale.pdf`, file: deedPdf, contentType: 'application/pdf' },
+		];
+
+		for (const upload of uploads) {
+			const response = await fetch(`${SUPABASE_URL}/storage/v1/object/documents/${upload.path}`, {
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+					'Content-Type': upload.contentType,
+					'x-upsert': 'true',
+				},
+				body: upload.file,
+			});
+
+			if (!response.ok) {
+				const error = await response.text();
+				console.error(`Failed to upload ${upload.path}:`, error);
+			}
+		}
+
+		// Create database record
+		const dbResponse = await fetch(`${SUPABASE_URL}/rest/v1/submissions`, {
+			method: 'POST',
+			headers: {
+				'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+				'Content-Type': 'application/json',
+				'apikey': SUPABASE_SERVICE_KEY,
+				'Prefer': 'return=minimal',
+			},
+			body: JSON.stringify({
+				name,
+				email,
+				phone: '',
+				square_meters: Number(squareMeters),
+				amount: Number(amount),
+				receipt_path: `${folder}/receipt.pdf`,
+				certificate_path: `${folder}/certificate.pdf`,
+				deed_path: `${folder}/deed-of-sale.pdf`,
+				payment_ref: paymentRef,
+				created_at: new Date().toISOString(),
+			}),
+		});
+
+		return {
+			folder,
+			storagePaths: uploads.map(u => u.path),
+		};
+	} catch (error) {
+		console.error('Supabase upload error:', error);
+		return null;
+	}
+}
+
 async function sendEmailViaResend({ to, name, receiptPdf, certificatePdf, deedPdf }) {
 	if (!RESEND_API_KEY) {
 		throw new Error('RESEND_API_KEY not configured');
@@ -403,6 +475,18 @@ module.exports = async function handler(req, res) {
 			amount 
 		});
 
+		// Upload PDFs to Supabase Storage for record-keeping
+		const storageResult = await uploadToSupabase({
+			email,
+			name,
+			receiptPdf,
+			certificatePdf,
+			deedPdf,
+			squareMeters,
+			amount,
+			paymentRef: paymentRef || `PAY-${Date.now()}`
+		});
+
 		// Send email with attachments
 		await sendEmailViaResend({ 
 			to: email, 
@@ -415,9 +499,11 @@ module.exports = async function handler(req, res) {
 		// Return success response
 		return res.status(200).json({
 			success: true,
-			message: 'Documents generated and sent successfully',
+			message: 'Documents generated, stored, and sent successfully',
 			documentsGenerated: ['receipt', 'certificate', 'deed-of-sale'],
 			recipient: email,
+			storageFolder: storageResult?.folder || 'not-stored',
+			storagePaths: storageResult?.storagePaths || [],
 			timestamp: new Date().toISOString()
 		});
 

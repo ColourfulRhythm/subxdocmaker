@@ -54,7 +54,14 @@ Authorization: Bearer your-secret-api-key
 API_KEY=your-secret-api-key-here
 RESEND_API_KEY=re_YRkNYfmu_AfrMUUFrnrYGKrHPkyEuCHBf
 MAIL_FROM=subx@subxhq.com
+SUPABASE_URL=https://kdisvxgqqskpxgxzbbet.supabase.co
+SUPABASE_SERVICE_KEY=your-supabase-service-role-key
 ```
+
+### How to Get Supabase Service Key:
+1. Go to: https://supabase.com/dashboard/project/kdisvxgqqskpxgxzbbet/settings/api
+2. Copy the **service_role** key (not the anon key)
+3. Add it to Vercel environment variables as `SUPABASE_SERVICE_KEY`
 
 ## Example Usage
 
@@ -172,4 +179,51 @@ The API automatically generates and emails three documents:
 3. **deed-of-sale.pdf** - Comprehensive legal deed of sale document
 
 All documents are professionally formatted with the company's branding and information.
+
+## Document Storage & Record-Keeping
+
+### Automatic Backup to Supabase
+All generated PDFs are automatically stored in Supabase Storage:
+- **Location**: `documents/{timestamp}-{email}/`
+- **Files Stored**: receipt.pdf, certificate.pdf, deed-of-sale.pdf
+- **Database Record**: Customer info saved in `submissions` table
+
+### What's Stored:
+- **Supabase Storage Bucket**: `documents`
+  - Each customer gets a unique folder: `{timestamp}-{sanitized-email}`
+  - Example: `1759820191234-john_doe_example_com/receipt.pdf`
+  
+- **Supabase Database Table**: `submissions`
+  - Customer name, email, phone
+  - Square meters, amount, payment reference
+  - Paths to all 3 PDF files
+  - Timestamp of generation
+
+### Accessing Stored Documents:
+1. **Supabase Dashboard**: https://supabase.com/dashboard/project/kdisvxgqqskpxgxzbbet/storage/buckets/documents
+2. **Via API**: Use Supabase Storage API to retrieve files
+3. **Download**: Can download any document from the dashboard
+
+### Benefits:
+- ✅ **Audit Trail**: Every document generation is logged
+- ✅ **Customer Support**: Easy to resend documents if customer loses them
+- ✅ **Compliance**: All records stored for legal/tax purposes
+- ✅ **Backup**: Redundant copies in case of email issues
+
+### Database Schema (submissions table):
+```sql
+CREATE TABLE submissions (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT,
+  square_meters NUMERIC,
+  amount NUMERIC,
+  receipt_path TEXT,
+  certificate_path TEXT,
+  deed_path TEXT,
+  payment_ref TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
 
