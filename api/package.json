@@ -1,0 +1,8 @@
+{
+  "name": "document-generator-api",
+  "version": "1.0.0",
+  "dependencies": {
+    "pdfkit": "^0.17.2"
+  }
+}
+
